@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.LockoutGate" parent="Theme.MaterialComponents.DayNight.NoActionBar" />
+
+    <!-- Full-screen, no-transition theme for the lock screen so it snaps
+         over the blocked app instantly instead of animating in. -->
+    <style name="Theme.LockoutGate.Block" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowIsTranslucent">false</item>
+    </style>
+</resources>

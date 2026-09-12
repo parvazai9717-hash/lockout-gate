@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Lockout Gate</string>
+    <string name="proof_title">Submit Proof</string>
+    <string name="accessibility_service_description">Watches which app is in the foreground so Lockout Gate can block time-wasting apps during an active work session. Reads only the foreground app\'s package name, never on-screen content.</string>
+
+    <string name="task_hint">What are you working on?</string>
+    <string name="start_work">Start work</string>
+    <string name="end_work">End work for today</string>
+    <string name="status_idle">No active work session.</string>
+    <string name="status_active">Working on: %1$s</string>
+    <string name="status_unlocked">Unlocked — proof accepted for this session.</string>
+    <string name="status_locked">Locked — submit proof to unlock entertainment apps.</string>
+    <string name="enable_accessibility">Enable blocking service</string>
+    <string name="submit_proof">Submit proof</string>
+
+    <string name="block_title">Blocked</string>
+    <string name="block_message">You said you were working on:\n“%1$s”\n\nSubmit proof to unlock.</string>
+    <string name="block_submit_proof">Submit proof</string>
+    <string name="block_back_to_work">Back to work</string>
+
+    <string name="proof_note_hint">Describe what you did</string>
+    <string name="proof_pick_media">Choose screenshot or video</string>
+    <string name="proof_submit">Submit</string>
+    <string name="proof_result_accepted">Accepted — unlocked.</string>
+    <string name="proof_result_rejected">Rejected: %1$s</string>
+
+    <string name="nag_channel_name">Work check-ins</string>
+    <string name="nag_channel_desc">Periodic reminders during an active work session</string>
+</resources>

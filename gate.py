@@ -23,6 +23,8 @@ from zoneinfo import ZoneInfo
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
+import work
+
 # --------------------------------------------------------------------- config
 
 DB_PATH = os.getenv("LOCKOUT_DB", "/var/lib/lockout/gate.db")
@@ -32,6 +34,7 @@ TZ = ZoneInfo(os.getenv("LOCKOUT_TZ", "Asia/Karachi"))
 LIMIT_MS = int(os.getenv("LOCKOUT_LIMIT_MIN", "30")) * 60_000
 
 app = FastAPI(title="Lockout Gate", docs_url=None, redoc_url=None)
+app.include_router(work.router)
 
 # ----------------------------------------------------------------- persistence
 
@@ -57,6 +60,7 @@ def init_db() -> None:
     os.makedirs(os.path.dirname(DB_PATH) or ".", exist_ok=True)
     with closing(db()) as conn, conn:
         conn.executescript(SCHEMA)
+    work.init_schema()
 
 
 def today() -> str:
