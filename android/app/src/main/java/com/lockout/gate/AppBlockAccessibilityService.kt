@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import com.lockout.gate.network.ApiClient
 import com.lockout.gate.state.SessionStore
 import kotlinx.coroutines.CoroutineScope
@@ -22,6 +23,12 @@ import kotlinx.coroutines.launch
  * Blocking decisions read the locally cached SessionStore, refreshed from
  * the server on a timer here, so a block decision never waits on a network
  * round-trip.
+ *
+ * Also self-protects: if the Package Installer's uninstall-confirmation
+ * screen, or Settings' own per-app Accessibility toggle screen, is showing
+ * for THIS app, bounces to the home screen before the action completes (see
+ * Config.SELF_PROTECT_PACKAGES). Only effective while this service is still
+ * running — deliberate friction, not a hard lock; ADB from a PC still works.
  */
 class AppBlockAccessibilityService : AccessibilityService() {
 
@@ -44,16 +51,65 @@ class AppBlockAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = event.packageName?.toString() ?: return
         if (pkg == packageName) return // never block ourselves
 
-        if (pkg in Config.ENTERTAINMENT_PACKAGES && store.isLocked()) {
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+            pkg in Config.ENTERTAINMENT_PACKAGES && store.isLocked()
+        ) {
             val intent = Intent(this, BlockActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
             startActivity(intent)
+            return
         }
+
+        if (pkg in Config.SELF_PROTECT_PACKAGES) {
+            checkSelfProtection(pkg)
+        }
+    }
+
+    /**
+     * If [pkg]'s current screen is the uninstall-confirmation dialog for this
+     * app, or Settings' own per-app Accessibility toggle screen for this
+     * service, bounce home before the action can complete.
+     */
+    private fun checkSelfProtection(pkg: String) {
+        val root = rootInActiveWindow ?: return
+        val appLabel = getString(R.string.app_name)
+        val hasOwnLabel = nodeTreeContainsText(root, appLabel)
+
+        val shouldBounce = when (pkg) {
+            "com.google.android.packageinstaller", "com.android.packageinstaller" ->
+                hasOwnLabel
+            "com.android.settings" ->
+                hasOwnLabel && nodeTreeHasSwitch(root)
+            else -> false
+        }
+
+        if (shouldBounce) {
+            performGlobalAction(GLOBAL_ACTION_HOME)
+        }
+    }
+
+    private fun nodeTreeContainsText(node: AccessibilityNodeInfo, needle: String): Boolean {
+        val text = node.text?.toString() ?: node.contentDescription?.toString()
+        if (text != null && text.contains(needle, ignoreCase = true)) return true
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            if (nodeTreeContainsText(child, needle)) return true
+        }
+        return false
+    }
+
+    private fun nodeTreeHasSwitch(node: AccessibilityNodeInfo): Boolean {
+        val className = node.className?.toString()
+        if (className != null && className.contains("Switch", ignoreCase = true)) return true
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            if (nodeTreeHasSwitch(child)) return true
+        }
+        return false
     }
 
     override fun onInterrupt() {}

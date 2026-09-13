@@ -42,6 +42,22 @@ object Config {
     /** How often the accessibility service refreshes its cached session state. */
     const val STATE_REFRESH_INTERVAL_MS: Long = 60_000L
 
+    /**
+     * Watched so the accessibility service can bounce the user to the home
+     * screen the instant it sees a screen for disabling this service or
+     * uninstalling this app — before the action completes. Only effective
+     * while the service is still enabled and running (a disabled service
+     * can't intercept anything, so re-enabling is never blocked). This is
+     * deliberate friction, not a hard lock: `adb shell pm uninstall` and
+     * `adb shell settings put secure enabled_accessibility_services ...`
+     * bypass the UI entirely and always work from a PC.
+     */
+    val SELF_PROTECT_PACKAGES: Set<String> = setOf(
+        "com.android.settings",
+        "com.google.android.packageinstaller",
+        "com.android.packageinstaller",
+    )
+
     /** WorkManager's floor for guaranteed periodic work is 15 minutes. */
     const val NAG_INTERVAL_MINUTES: Long = 15L
 

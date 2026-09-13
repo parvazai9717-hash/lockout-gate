@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">Lockout Gate</string>
     <string name="proof_title">Submit Proof</string>
-    <string name="accessibility_service_description">Watches which app is in the foreground so Lockout Gate can block time-wasting apps during an active work session. Reads only the foreground app\'s package name, never on-screen content.</string>
+    <string name="accessibility_service_description">Watches which app is in the foreground so Lockout Gate can block time-wasting apps during an active work session. Also protects itself: reads on-screen text only within Settings and the Package Installer, to detect and bounce out of attempts to disable this service or uninstall this app from the phone (use a PC with ADB instead).</string>
 
     <string name="task_hint">What are you working on?</string>
     <string name="start_work">Start work</string>
