@@ -29,12 +29,24 @@ class SessionStore(context: Context) {
         get() = prefs.getBoolean(KEY_UNLOCKED, false)
         set(value) = prefs.edit().putBoolean(KEY_UNLOCKED, value).apply()
 
-    fun update(active: Boolean, sessionId: String?, task: String?, unlocked: Boolean) {
+    /** Display-only — the server is the source of truth for the daily cap. */
+    var breaksRemainingToday: Int
+        get() = prefs.getInt(KEY_BREAKS_REMAINING, 0)
+        set(value) = prefs.edit().putInt(KEY_BREAKS_REMAINING, value).apply()
+
+    fun update(
+        active: Boolean,
+        sessionId: String?,
+        task: String?,
+        unlocked: Boolean,
+        breaksRemainingToday: Int = this.breaksRemainingToday,
+    ) {
         prefs.edit()
             .putBoolean(KEY_ACTIVE, active)
             .putString(KEY_SESSION_ID, sessionId)
             .putString(KEY_TASK, task)
             .putBoolean(KEY_UNLOCKED, unlocked)
+            .putInt(KEY_BREAKS_REMAINING, breaksRemainingToday)
             .apply()
     }
 
@@ -46,5 +58,6 @@ class SessionStore(context: Context) {
         private const val KEY_SESSION_ID = "session_id"
         private const val KEY_TASK = "task"
         private const val KEY_UNLOCKED = "unlocked"
+        private const val KEY_BREAKS_REMAINING = "breaks_remaining_today"
     }
 }

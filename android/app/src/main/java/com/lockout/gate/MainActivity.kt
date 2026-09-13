@@ -49,6 +49,9 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.submitProofButton).setOnClickListener {
             startActivity(Intent(this, ProofActivity::class.java))
         }
+        findViewById<Button>(R.id.eatingBreakButton).setOnClickListener {
+            startActivity(Intent(this, BreakActivity::class.java))
+        }
         findViewById<Button>(R.id.enableAccessibilityButton).setOnClickListener {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
@@ -62,13 +65,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderStatus() {
-        statusText.text = when {
+        val base = when {
             !store.active -> getString(R.string.status_idle)
             store.unlocked -> getString(R.string.status_active, store.task) + "\n" +
                 getString(R.string.status_unlocked)
             else -> getString(R.string.status_active, store.task) + "\n" +
                 getString(R.string.status_locked)
         }
+        statusText.text = base + "\n" + getString(R.string.status_breaks_remaining, store.breaksRemainingToday)
         if (store.active) taskInput.setText(store.task)
     }
 
@@ -78,7 +82,7 @@ class MainActivity : AppCompatActivity() {
                 val resp = ApiClient.api.workState(Config.DEVICE_KEY, Config.DEVICE_ID)
                 val body = resp.body()
                 if (resp.isSuccessful && body != null) {
-                    store.update(body.active, body.session_id, body.task, body.unlocked)
+                    store.update(body.active, body.session_id, body.task, body.unlocked, body.breaks_remaining_today)
                     renderStatus()
                     if (body.active) NagWorker.schedule(applicationContext) else NagWorker.cancel(applicationContext)
                 }

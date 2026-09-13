@@ -19,8 +19,8 @@ android {
         // building — see Config.kt for the single source of truth used at
         // runtime (these just seed its defaults).
         // Must end with a trailing slash — Retrofit requires it.
-        buildConfigField("String", "SERVER_BASE_URL", "\"https://CHANGE-ME.example.com/\"")
-        buildConfigField("String", "DEVICE_KEY", "\"change-me\"")
+        buildConfigField("String", "SERVER_BASE_URL", "\"https://lockout-gate-lockout-gate.qt5ga9.easypanel.host/\"")
+        buildConfigField("String", "DEVICE_KEY", "\"97931aeac1fe752665cf6ffb950e31e48fde30234bd44e64\"")
     }
 
     buildTypes {

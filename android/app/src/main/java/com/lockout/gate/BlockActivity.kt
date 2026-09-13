@@ -28,6 +28,10 @@ class BlockActivity : AppCompatActivity() {
             startActivity(Intent(this, ProofActivity::class.java))
             finish()
         }
+        findViewById<Button>(R.id.eatingBreakButton).setOnClickListener {
+            startActivity(Intent(this, BreakActivity::class.java))
+            finish()
+        }
         findViewById<Button>(R.id.backToWorkButton).setOnClickListener {
             // Send the user home rather than back into the blocked app.
             val homeIntent = Intent(Intent.ACTION_MAIN).apply {

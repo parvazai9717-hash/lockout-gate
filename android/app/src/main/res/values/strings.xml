@@ -25,6 +25,15 @@
     <string name="proof_result_accepted">Accepted — unlocked.</string>
     <string name="proof_result_rejected">Rejected: %1$s</string>
 
+    <string name="eating_break">Eating break</string>
+    <string name="break_info">Take a photo of yourself eating right now. %1$d break(s) left today.</string>
+    <string name="status_breaks_remaining">Eating breaks left today: %1$d</string>
+    <string name="break_pick_photo">Choose photo</string>
+    <string name="break_submit">Submit</string>
+    <string name="break_result_accepted">Accepted — unlocked for %1$d minutes.</string>
+    <string name="break_result_rejected">Rejected: %1$s</string>
+    <string name="block_eating_break">I\'m eating</string>
+
     <string name="nag_channel_name">Work check-ins</string>
     <string name="nag_channel_desc">Periodic reminders during an active work session</string>
 </resources>

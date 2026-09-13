@@ -30,6 +30,11 @@
             android:label="@string/proof_title" />
 
         <activity
+            android:name=".BreakActivity"
+            android:exported="false"
+            android:label="@string/eating_break" />
+
+        <activity
             android:name=".BlockActivity"
             android:exported="false"
             android:launchMode="singleInstance"

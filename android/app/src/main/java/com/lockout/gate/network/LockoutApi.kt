@@ -18,12 +18,22 @@ data class WorkStateResponse(
     val session_id: String?,
     val task: String?,
     val unlocked: Boolean,
+    val breaks_used_today: Int = 0,
+    val breaks_remaining_today: Int = 0,
 )
 
 data class WorkEndRequest(val device_id: String, val session_id: String)
 data class WorkEndResponse(val session_id: String, val ended_at: Long)
 
 data class ProofResponse(val accepted: Boolean, val confidence: Double, val reasoning: String)
+
+data class BreakClaimResponse(
+    val accepted: Boolean,
+    val confidence: Double,
+    val reasoning: String,
+    val breaks_used_today: Int,
+    val breaks_remaining_today: Int,
+)
 
 data class CheckRequest(val device_id: String, val used_ms: Long)
 data class CheckResponse(val allowed: Boolean, val reason: String, val used_ms: Long, val remaining_ms: Long)
@@ -62,4 +72,12 @@ interface LockoutApi {
         @Header("X-Auth") auth: String,
         @Body body: CheckRequest,
     ): Response<CheckResponse>
+
+    @Multipart
+    @POST("/v1/break/claim")
+    suspend fun claimBreak(
+        @Header("X-Auth") auth: String,
+        @Part("device_id") deviceId: okhttp3.RequestBody,
+        @Part file: MultipartBody.Part,
+    ): Response<BreakClaimResponse>
 }

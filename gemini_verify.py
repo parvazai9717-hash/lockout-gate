@@ -69,14 +69,14 @@ what you saw and why it does or doesn't match.
 """
 
 
-def verify(task: str, note: str, media_bytes: bytes, mime_type: str) -> VerifyResult:
-    """Ask Gemini whether media_bytes is genuine proof of `task`. Fails closed."""
+def _ask_gemini(prompt: str, media_bytes: bytes, mime_type: str) -> VerifyResult:
+    """Shared Gemini call + fail-closed error handling for both verifiers."""
     try:
         client = _get_client()
         response = client.models.generate_content(
             model=GEMINI_MODEL,
             contents=[
-                PROMPT_TEMPLATE.format(task=task, note=note or "(no note given)"),
+                prompt,
                 types.Part.from_bytes(data=media_bytes, mime_type=mime_type),
             ],
             config=types.GenerateContentConfig(
@@ -102,3 +102,36 @@ def verify(task: str, note: str, media_bytes: bytes, mime_type: str) -> VerifyRe
             confidence=0.0,
             reasoning=f"rejected: could not verify ({e})",
         )
+
+
+def verify(task: str, note: str, media_bytes: bytes, mime_type: str) -> VerifyResult:
+    """Ask Gemini whether media_bytes is genuine proof of `task`. Fails closed."""
+    prompt = PROMPT_TEMPLATE.format(task=task, note=note or "(no note given)")
+    return _ask_gemini(prompt, media_bytes, mime_type)
+
+
+MEAL_PROMPT_TEMPLATE = """\
+You are a strict auditor checking whether a photo is genuine, current proof \
+that the person submitting it is actively eating real food right now.
+
+Accept ONLY if the photo clearly shows the person themselves (or unmistakably \
+their own point of view, e.g. a plate/food they are actively holding or eating \
+from) genuinely eating or about to eat real food in the moment.
+
+Reject if: it's a stock or found photo of food with no clear connection to a \
+real person actually eating; it's just food sitting on a table with no signs \
+of someone present and eating; it looks like an old, reused, or screenshotted \
+image rather than a fresh photo; it's unrelated to eating entirely; or it's \
+otherwise ambiguous or low-effort. Be skeptical by default — this is a \
+photo someone could reuse to repeatedly cheat a break-time limit, so only \
+accept clear, unambiguous, current evidence of real eating.
+
+Respond with your verdict ("accepted" or "rejected"), a confidence from \
+0.0 to 1.0, and a short one or two sentence reasoning explaining exactly \
+what you saw and why it does or doesn't qualify.
+"""
+
+
+def verify_meal(media_bytes: bytes, mime_type: str) -> VerifyResult:
+    """Ask Gemini whether media_bytes is a genuine photo of the user eating. Fails closed."""
+    return _ask_gemini(MEAL_PROMPT_TEMPLATE, media_bytes, mime_type)

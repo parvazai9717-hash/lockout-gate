@@ -45,6 +45,13 @@ object Config {
     /** WorkManager's floor for guaranteed periodic work is 15 minutes. */
     const val NAG_INTERVAL_MINUTES: Long = 15L
 
+    /**
+     * Display-only — must match the server's LOCKOUT_BREAK_MINUTES env var
+     * (default 35). The server alone enforces the actual unlock window via
+     * temp_unlock_until; this is just what the app tells the user to expect.
+     */
+    const val BREAK_MINUTES: Int = 35
+
     val NAG_PHRASES: List<String> = listOf(
         "Are you actually working right now?",
         "Work, work, work — how's it going?",

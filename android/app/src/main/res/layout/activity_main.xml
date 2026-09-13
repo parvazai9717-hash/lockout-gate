@@ -45,6 +45,13 @@
             android:text="@string/submit_proof" />
 
         <Button
+            android:id="@+id/eatingBreakButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/eating_break" />
+
+        <Button
             android:id="@+id/enableAccessibilityButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
