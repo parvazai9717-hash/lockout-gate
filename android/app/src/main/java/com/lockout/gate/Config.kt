@@ -23,24 +23,33 @@ object Config {
     const val DEVICE_ID: String = "primary"
 
     /**
-     * Whole apps blocked outright while a work session is active and locked.
+     * Whole apps blocked outright unless a break is currently active.
      * Deliberately package-level, not URL-level, inside Chrome — reading
      * Chrome's address bar via the accessibility service is fragile and
      * breaks on every Chrome update, so the whole browser is blocked instead.
-     * Edit this list to add/remove apps (e.g. TikTok, Facebook, Reddit).
      *
      * YouTube Music (com.google.android.apps.youtube.music) is deliberately
      * NOT in this list — it's used as background audio, not a distraction,
-     * so it's always allowed regardless of the active task.
+     * so it's always allowed.
      */
     val ENTERTAINMENT_PACKAGES: Set<String> = setOf(
         "com.android.chrome",
         "com.instagram.android",
         "com.google.android.youtube",
+        "com.facebook.katana",
     )
 
-    /** How often the accessibility service refreshes its cached session state. */
-    const val STATE_REFRESH_INTERVAL_MS: Long = 60_000L
+    /**
+     * How often the accessibility service refreshes lock state from the
+     * server and, while a break is active, reports real usage of the
+     * watched apps. Tight enough that the 30-minute break budget re-locks
+     * promptly once used up.
+     */
+    const val STATE_REFRESH_INTERVAL_MS: Long = 15_000L
+
+    /** Must match the server's LOCKOUT_BREAK_MINUTES env var (default 30). */
+    const val BREAK_MINUTES: Int = 30
+    const val BREAK_MS: Long = BREAK_MINUTES * 60_000L
 
     /**
      * Watched so the accessibility service can bounce the user to the home
@@ -56,23 +65,5 @@ object Config {
         "com.android.settings",
         "com.google.android.packageinstaller",
         "com.android.packageinstaller",
-    )
-
-    /** WorkManager's floor for guaranteed periodic work is 15 minutes. */
-    const val NAG_INTERVAL_MINUTES: Long = 15L
-
-    /**
-     * Display-only — must match the server's LOCKOUT_BREAK_MINUTES env var
-     * (default 35). The server alone enforces the actual unlock window via
-     * temp_unlock_until; this is just what the app tells the user to expect.
-     */
-    const val BREAK_MINUTES: Int = 35
-
-    val NAG_PHRASES: List<String> = listOf(
-        "Are you actually working right now?",
-        "Work, work, work — how's it going?",
-        "Still on task?",
-        "Checking in — back to it.",
-        "Is this still the task you said you'd do?",
     )
 }

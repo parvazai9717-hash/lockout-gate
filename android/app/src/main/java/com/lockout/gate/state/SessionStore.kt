@@ -2,9 +2,10 @@ package com.lockout.gate.state
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.lockout.gate.network.LockState
 
 /**
- * Local cache of the server's /v1/work/state, so the accessibility service
+ * Local cache of the server's /v1/lock/state, so the accessibility service
  * can decide instantly whether to block an app without a network round-trip
  * on every foreground-app change. Refreshed periodically from the server;
  * the server is always the source of truth, this is just a fast mirror.
@@ -13,51 +14,76 @@ class SessionStore(context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("lockout_session", Context.MODE_PRIVATE)
 
-    var active: Boolean
-        get() = prefs.getBoolean(KEY_ACTIVE, false)
-        set(value) = prefs.edit().putBoolean(KEY_ACTIVE, value).apply()
+    var enabled: Boolean
+        get() = prefs.getBoolean(KEY_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_ENABLED, value).apply()
 
-    var sessionId: String?
-        get() = prefs.getString(KEY_SESSION_ID, null)
-        set(value) = prefs.edit().putString(KEY_SESSION_ID, value).apply()
+    var locked: Boolean
+        get() = prefs.getBoolean(KEY_LOCKED, true)
+        set(value) = prefs.edit().putBoolean(KEY_LOCKED, value).apply()
 
-    var task: String?
-        get() = prefs.getString(KEY_TASK, null)
-        set(value) = prefs.edit().putString(KEY_TASK, value).apply()
+    var hardLockActive: Boolean
+        get() = prefs.getBoolean(KEY_HARD_LOCK_ACTIVE, false)
+        set(value) = prefs.edit().putBoolean(KEY_HARD_LOCK_ACTIVE, value).apply()
 
-    var unlocked: Boolean
-        get() = prefs.getBoolean(KEY_UNLOCKED, false)
-        set(value) = prefs.edit().putBoolean(KEY_UNLOCKED, value).apply()
+    var hardLockDaysRemaining: Int
+        get() = prefs.getInt(KEY_HARD_LOCK_DAYS, 0)
+        set(value) = prefs.edit().putInt(KEY_HARD_LOCK_DAYS, value).apply()
 
-    /** Display-only — the server is the source of truth for the daily cap. */
+    var breaksUsedToday: Int
+        get() = prefs.getInt(KEY_BREAKS_USED, 0)
+        set(value) = prefs.edit().putInt(KEY_BREAKS_USED, value).apply()
+
     var breaksRemainingToday: Int
         get() = prefs.getInt(KEY_BREAKS_REMAINING, 0)
         set(value) = prefs.edit().putInt(KEY_BREAKS_REMAINING, value).apply()
 
-    fun update(
-        active: Boolean,
-        sessionId: String?,
-        task: String?,
-        unlocked: Boolean,
-        breaksRemainingToday: Int = this.breaksRemainingToday,
-    ) {
+    var activeBreak: Boolean
+        get() = prefs.getBoolean(KEY_ACTIVE_BREAK, false)
+        set(value) = prefs.edit().putBoolean(KEY_ACTIVE_BREAK, value).apply()
+
+    var emergencyAvailable: Boolean
+        get() = prefs.getBoolean(KEY_EMERGENCY_AVAILABLE, true)
+        set(value) = prefs.edit().putBoolean(KEY_EMERGENCY_AVAILABLE, value).apply()
+
+    /**
+     * Local device-clock checkpoint of usage already reported to the server
+     * for the current break. Reset to "now" whenever activeBreak flips from
+     * false to true, so only usage since the break actually started counts.
+     */
+    var usageCheckpointMs: Long
+        get() = prefs.getLong(KEY_USAGE_CHECKPOINT, 0L)
+        set(value) = prefs.edit().putLong(KEY_USAGE_CHECKPOINT, value).apply()
+
+    fun update(state: LockState) {
+        val wasActiveBreak = activeBreak
         prefs.edit()
-            .putBoolean(KEY_ACTIVE, active)
-            .putString(KEY_SESSION_ID, sessionId)
-            .putString(KEY_TASK, task)
-            .putBoolean(KEY_UNLOCKED, unlocked)
-            .putInt(KEY_BREAKS_REMAINING, breaksRemainingToday)
+            .putBoolean(KEY_ENABLED, state.enabled)
+            .putBoolean(KEY_LOCKED, state.locked)
+            .putBoolean(KEY_HARD_LOCK_ACTIVE, state.hard_lock_active)
+            .putInt(KEY_HARD_LOCK_DAYS, state.hard_lock_days_remaining)
+            .putInt(KEY_BREAKS_USED, state.breaks_used_today)
+            .putInt(KEY_BREAKS_REMAINING, state.breaks_remaining_today)
+            .putBoolean(KEY_ACTIVE_BREAK, state.active_break)
+            .putBoolean(KEY_EMERGENCY_AVAILABLE, state.emergency_available)
             .apply()
+        if (state.active_break && !wasActiveBreak) {
+            usageCheckpointMs = System.currentTimeMillis()
+        }
     }
 
     /** True when an entertainment app should currently be blocked. */
-    fun isLocked(): Boolean = active && !unlocked
+    fun isLocked(): Boolean = locked
 
     companion object {
-        private const val KEY_ACTIVE = "active"
-        private const val KEY_SESSION_ID = "session_id"
-        private const val KEY_TASK = "task"
-        private const val KEY_UNLOCKED = "unlocked"
+        private const val KEY_ENABLED = "enabled"
+        private const val KEY_LOCKED = "locked"
+        private const val KEY_HARD_LOCK_ACTIVE = "hard_lock_active"
+        private const val KEY_HARD_LOCK_DAYS = "hard_lock_days_remaining"
+        private const val KEY_BREAKS_USED = "breaks_used_today"
         private const val KEY_BREAKS_REMAINING = "breaks_remaining_today"
+        private const val KEY_ACTIVE_BREAK = "active_break"
+        private const val KEY_EMERGENCY_AVAILABLE = "emergency_available"
+        private const val KEY_USAGE_CHECKPOINT = "usage_checkpoint_ms"
     }
 }

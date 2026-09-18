@@ -1,29 +1,36 @@
 """
-Work-session accountability layer.
+App-lock layer: blocks a fixed set of entertainment apps by default and
+gives back short, real-usage-tracked breaks — no task, no "prove you worked."
 
-Independent of the daily budget system in gate.py: this tracks a single
-active "I'm doing work" session per device, whether it is currently
-entertainment-locked, and the proof that unlocks it.
+    Normal mode (always on, no button needed):
+        3 breaks/day, 30 min of real screen time each, no photo required.
+    Hard Lock mode (opt-in, POST /v1/lock/hardlock/start):
+        blocks the apps hard for N days; only 1 break/day, and that one
+        break requires a Gemini-verified photo of yourself eating.
+    Emergency override:
+        a true on/off switch (POST /v1/lock/emergency/disable|enable).
+        Disabling is capped at once per calendar month; re-enabling is not.
 
-    1. POST /v1/work/start   — declare a task, opens a session (locked).
-    2. GET  /v1/work/state   — what the phone polls to know if it's locked.
-    3. POST /v1/work/proof   — submit a screenshot/video + note; Gemini
-       judges it against the declared task and unlocks on acceptance.
-    4. POST /v1/work/end     — close out the session for the day.
-    5. POST /v1/break/claim  — submit a photo of yourself eating; Gemini
-       verifies it, and if accepted grants a short, self-expiring unlock
-       of entertainment apps (capped at a few times per day). This is a
-       second, independent unlock path from proof-of-task — it doesn't
-       end the work session, just opens a timed window inside it.
+Breaks are NOT a wall-clock countdown. Starting one just opens the door;
+the phone reports real foreground usage of the watched apps as it happens
+(POST /v1/break/report, monotonic, same anti-cheat pattern as gate.py's
+/v1/check), and the break only expires once 30 real minutes are used up —
+walking away and coming back later doesn't burn it down.
+
+    GET  /v1/lock/state            — current lock/break/hard-lock status.
+    POST /v1/break/start           — start a normal-mode break (no photo).
+    POST /v1/break/claim           — start a hard-lock break (photo + Gemini).
+    POST /v1/break/report          — report real usage ms for the active break.
+    POST /v1/lock/hardlock/start   — begin an N-day hard lock.
+    POST /v1/lock/emergency/disable — turn off all blocking (max 1x/month).
+    POST /v1/lock/emergency/enable  — turn blocking back on (unlimited).
 """
 
-import mimetypes
 import os
 import sqlite3
 import time
-import uuid
 from contextlib import closing
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
@@ -40,48 +47,30 @@ router = APIRouter()
 DB_PATH = os.getenv("LOCKOUT_DB", "/var/lib/lockout/gate.db")
 DEVICE_KEY = os.getenv("LOCKOUT_DEVICE_KEY", "change-me")
 PROOF_DIR = os.getenv("LOCKOUT_PROOF_DIR", os.path.join(os.path.dirname(DB_PATH) or ".", "proofs"))
-MAX_PROOF_BYTES = 20 * 1024 * 1024  # inline Gemini upload cap; no Files API here
+MAX_PROOF_BYTES = 20 * 1024 * 1024  # inline Gemini upload cap
 TZ = ZoneInfo(os.getenv("LOCKOUT_TZ", "Asia/Karachi"))
-BREAK_SECONDS = int(os.getenv("LOCKOUT_BREAK_MINUTES", "35")) * 60
-MAX_BREAKS_PER_DAY = int(os.getenv("LOCKOUT_MAX_BREAKS_PER_DAY", "4"))
+BREAK_MS = int(os.getenv("LOCKOUT_BREAK_MINUTES", "30")) * 60_000
+MAX_BREAKS_PER_DAY = int(os.getenv("LOCKOUT_MAX_BREAKS_PER_DAY", "3"))
+MAX_HARDLOCK_BREAKS_PER_DAY = int(os.getenv("LOCKOUT_MAX_HARDLOCK_BREAKS_PER_DAY", "1"))
+MAX_HARDLOCK_DAYS = 90
 
 SCHEMA = """
-CREATE TABLE IF NOT EXISTS work_sessions (
-    session_id  TEXT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS lock_state (
+    device_id                TEXT PRIMARY KEY,
+    enabled                  INTEGER NOT NULL DEFAULT 1,
+    hard_lock_until          TEXT,
+    emergency_month          TEXT,
+    active_break_started_at  INTEGER,
+    active_break_used_ms     INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS daily_breaks (
     device_id   TEXT NOT NULL,
-    task        TEXT NOT NULL,
-    started_at  INTEGER NOT NULL,
-    unlocked    INTEGER NOT NULL DEFAULT 0,
-    ended_at    INTEGER
-);
-
-CREATE TABLE IF NOT EXISTS proofs (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id   TEXT NOT NULL,
-    device_id    TEXT NOT NULL,
-    submitted_at INTEGER NOT NULL,
-    media_path   TEXT NOT NULL,
-    media_kind   TEXT NOT NULL,
-    note         TEXT,
-    verdict      TEXT NOT NULL,
-    confidence   REAL,
-    reasoning    TEXT
-);
-
-CREATE TABLE IF NOT EXISTS eating_breaks (
-    device_id TEXT NOT NULL,
-    day       TEXT NOT NULL,
-    count     INTEGER NOT NULL DEFAULT 0,
+    day         TEXT NOT NULL,
+    breaks_used INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (device_id, day)
 );
 """
-
-# Columns added after the tables above already shipped. CREATE TABLE IF NOT
-# EXISTS won't retrofit an already-deployed DB, so add them defensively.
-MIGRATIONS = [
-    "ALTER TABLE work_sessions ADD COLUMN temp_unlock_until INTEGER",
-    "ALTER TABLE proofs ADD COLUMN kind TEXT NOT NULL DEFAULT 'work'",
-]
 
 
 def db() -> sqlite3.Connection:
@@ -95,16 +84,15 @@ def today() -> str:
     return datetime.now(TZ).strftime("%Y-%m-%d")
 
 
+def current_month() -> str:
+    return datetime.now(TZ).strftime("%Y-%m")
+
+
 def init_schema() -> None:
     os.makedirs(os.path.dirname(DB_PATH) or ".", exist_ok=True)
     os.makedirs(PROOF_DIR, exist_ok=True)
     with closing(db()) as conn, conn:
         conn.executescript(SCHEMA)
-        for migration in MIGRATIONS:
-            try:
-                conn.execute(migration)
-            except sqlite3.OperationalError:
-                pass  # column already exists from a previous deploy
 
 
 def _check_auth(x_auth: str) -> None:
@@ -112,180 +100,133 @@ def _check_auth(x_auth: str) -> None:
         raise HTTPException(401, "bad device key")
 
 
+def _get_or_create_lock_row(conn: sqlite3.Connection, device_id: str) -> sqlite3.Row:
+    conn.execute(
+        "INSERT INTO lock_state (device_id) VALUES (?) ON CONFLICT(device_id) DO NOTHING",
+        (device_id,),
+    )
+    return conn.execute("SELECT * FROM lock_state WHERE device_id = ?", (device_id,)).fetchone()
+
+
+def _breaks_used_today(conn: sqlite3.Connection, device_id: str) -> int:
+    row = conn.execute(
+        "SELECT breaks_used FROM daily_breaks WHERE device_id = ? AND day = ?",
+        (device_id, today()),
+    ).fetchone()
+    return row["breaks_used"] if row else 0
+
+
+def _increment_breaks_used(conn: sqlite3.Connection, device_id: str) -> None:
+    conn.execute(
+        """
+        INSERT INTO daily_breaks (device_id, day, breaks_used) VALUES (?, ?, 1)
+        ON CONFLICT(device_id, day) DO UPDATE SET breaks_used = breaks_used + 1
+        """,
+        (device_id, today()),
+    )
+
+
+def _hard_lock_active(row: sqlite3.Row) -> bool:
+    until = row["hard_lock_until"]
+    return until is not None and today() <= until
+
+
+def _hard_lock_days_remaining(row: sqlite3.Row) -> int:
+    until = row["hard_lock_until"]
+    if until is None:
+        return 0
+    remaining = (date.fromisoformat(until) - date.fromisoformat(today())).days
+    return max(0, remaining)
+
+
+def _build_state(conn: sqlite3.Connection, device_id: str, row: sqlite3.Row) -> "LockState":
+    hard_lock_active = _hard_lock_active(row)
+    cap = MAX_HARDLOCK_BREAKS_PER_DAY if hard_lock_active else MAX_BREAKS_PER_DAY
+    breaks_used = _breaks_used_today(conn, device_id)
+    enabled = bool(row["enabled"])
+    active_break = enabled and row["active_break_started_at"] is not None
+    return LockState(
+        enabled=enabled,
+        locked=enabled and not active_break,
+        hard_lock_active=hard_lock_active,
+        hard_lock_days_remaining=_hard_lock_days_remaining(row),
+        breaks_used_today=breaks_used,
+        breaks_remaining_today=max(0, cap - breaks_used),
+        active_break=active_break,
+        emergency_available=row["emergency_month"] != current_month(),
+    )
+
+
 # --------------------------------------------------------------------- schemas
 
 
-class WorkStart(BaseModel):
-    device_id: str
-    task: str
-
-
-class WorkStarted(BaseModel):
-    session_id: str
-    task: str
-    started_at: int
-
-
-class WorkState(BaseModel):
-    active: bool
-    session_id: str | None = None
-    task: str | None = None
-    unlocked: bool = False
-    breaks_used_today: int = 0
-    breaks_remaining_today: int = MAX_BREAKS_PER_DAY
-
-
-class WorkEnd(BaseModel):
-    device_id: str
-    session_id: str
-
-
-class ProofResult(BaseModel):
-    accepted: bool
-    confidence: float
-    reasoning: str
-
-
-class BreakClaimResult(BaseModel):
-    accepted: bool
-    confidence: float
-    reasoning: str
+class LockState(BaseModel):
+    enabled: bool
+    locked: bool
+    hard_lock_active: bool
+    hard_lock_days_remaining: int
     breaks_used_today: int
     breaks_remaining_today: int
+    active_break: bool
+    emergency_available: bool
 
 
-def _break_count_today(conn: sqlite3.Connection, device_id: str) -> int:
-    row = conn.execute(
-        "SELECT count FROM eating_breaks WHERE device_id = ? AND day = ?",
-        (device_id, today()),
-    ).fetchone()
-    return row["count"] if row else 0
+class DeviceRequest(BaseModel):
+    device_id: str
+
+
+class BreakReportRequest(BaseModel):
+    device_id: str
+    delta_ms: int
+
+
+class HardLockStartRequest(BaseModel):
+    device_id: str
+    days: int
+
+
+class BreakClaimResult(LockState):
+    accepted: bool
+    confidence: float
+    reasoning: str
 
 
 # ------------------------------------------------------------------- endpoints
 
 
-@router.post("/v1/work/start", response_model=WorkStarted)
-def work_start(body: WorkStart, x_auth: str = Header(default="")) -> WorkStarted:
+@router.get("/v1/lock/state", response_model=LockState)
+def lock_state(device_id: str, x_auth: str = Header(default="")) -> LockState:
     _check_auth(x_auth)
-    now = int(time.time())
-    session_id = uuid.uuid4().hex
-
     with closing(db()) as conn, conn:
+        row = _get_or_create_lock_row(conn, device_id)
+        return _build_state(conn, device_id, row)
+
+
+@router.post("/v1/break/start", response_model=LockState)
+def break_start(body: DeviceRequest, x_auth: str = Header(default="")) -> LockState:
+    """Start a normal-mode break — no photo needed. Rejected during a hard lock."""
+    _check_auth(x_auth)
+    with closing(db()) as conn, conn:
+        row = _get_or_create_lock_row(conn, body.device_id)
+        if not row["enabled"]:
+            return _build_state(conn, body.device_id, row)
+        if _hard_lock_active(row):
+            raise HTTPException(400, "hard lock is active — use /v1/break/claim with a photo instead")
+        if row["active_break_started_at"] is not None:
+            return _build_state(conn, body.device_id, row)  # already active, idempotent
+
+        breaks_used = _breaks_used_today(conn, body.device_id)
+        if breaks_used >= MAX_BREAKS_PER_DAY:
+            raise HTTPException(429, f"daily break limit reached ({breaks_used}/{MAX_BREAKS_PER_DAY})")
+
+        now = int(time.time())
         conn.execute(
-            "UPDATE work_sessions SET ended_at = ? WHERE device_id = ? AND ended_at IS NULL",
+            "UPDATE lock_state SET active_break_started_at = ?, active_break_used_ms = 0 WHERE device_id = ?",
             (now, body.device_id),
         )
-        conn.execute(
-            """
-            INSERT INTO work_sessions (session_id, device_id, task, started_at, unlocked, ended_at)
-            VALUES (?, ?, ?, ?, 0, NULL)
-            """,
-            (session_id, body.device_id, body.task, now),
-        )
-
-    return WorkStarted(session_id=session_id, task=body.task, started_at=now)
-
-
-@router.get("/v1/work/state", response_model=WorkState)
-def work_state(device_id: str, x_auth: str = Header(default="")) -> WorkState:
-    _check_auth(x_auth)
-
-    with closing(db()) as conn:
-        row = conn.execute(
-            """
-            SELECT session_id, task, unlocked, temp_unlock_until FROM work_sessions
-            WHERE device_id = ? AND ended_at IS NULL
-            ORDER BY started_at DESC LIMIT 1
-            """,
-            (device_id,),
-        ).fetchone()
-        breaks_used = _break_count_today(conn, device_id)
-
-    breaks_remaining = max(0, MAX_BREAKS_PER_DAY - breaks_used)
-
-    if row is None:
-        return WorkState(active=False, breaks_used_today=breaks_used, breaks_remaining_today=breaks_remaining)
-
-    temp_unlock_until = row["temp_unlock_until"]
-    on_break = temp_unlock_until is not None and time.time() < temp_unlock_until
-
-    return WorkState(
-        active=True,
-        session_id=row["session_id"],
-        task=row["task"],
-        unlocked=bool(row["unlocked"]) or on_break,
-        breaks_used_today=breaks_used,
-        breaks_remaining_today=breaks_remaining,
-    )
-
-
-@router.post("/v1/work/proof", response_model=ProofResult)
-async def work_proof(
-    device_id: str = Form(...),
-    session_id: str = Form(...),
-    note: str = Form(""),
-    file: UploadFile = File(...),
-    x_auth: str = Header(default=""),
-) -> ProofResult:
-    _check_auth(x_auth)
-
-    with closing(db()) as conn:
-        session = conn.execute(
-            "SELECT task FROM work_sessions WHERE session_id = ? AND device_id = ? AND ended_at IS NULL",
-            (session_id, device_id),
-        ).fetchone()
-    if session is None:
-        raise HTTPException(404, "no active session with that id for this device")
-
-    content_type = file.content_type or "application/octet-stream"
-    if content_type.startswith("image/"):
-        media_kind = "image"
-    elif content_type.startswith("video/"):
-        media_kind = "video"
-    else:
-        raise HTTPException(400, f"unsupported media type: {content_type}")
-
-    media_bytes = await file.read()
-    if len(media_bytes) > MAX_PROOF_BYTES:
-        raise HTTPException(413, "proof file too large (20MB limit, keep videos short)")
-
-    ext = mimetypes.guess_extension(content_type) or ".bin"
-    session_dir = os.path.join(PROOF_DIR, session_id)
-    os.makedirs(session_dir, exist_ok=True)
-    media_path = os.path.join(session_dir, f"{int(time.time())}_{uuid.uuid4().hex[:8]}{ext}")
-    with open(media_path, "wb") as f:
-        f.write(media_bytes)
-
-    result = gemini_verify.verify(session["task"], note, media_bytes, content_type)
-
-    now = int(time.time())
-    with closing(db()) as conn, conn:
-        conn.execute(
-            """
-            INSERT INTO proofs
-                (session_id, device_id, submitted_at, media_path, media_kind, note, verdict, confidence, reasoning)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                session_id,
-                device_id,
-                now,
-                media_path,
-                media_kind,
-                note,
-                "accepted" if result.accepted else "rejected",
-                result.confidence,
-                result.reasoning,
-            ),
-        )
-        if result.accepted:
-            conn.execute(
-                "UPDATE work_sessions SET unlocked = 1 WHERE session_id = ?",
-                (session_id,),
-            )
-
-    return ProofResult(accepted=result.accepted, confidence=result.confidence, reasoning=result.reasoning)
+        _increment_breaks_used(conn, body.device_id)
+        row = conn.execute("SELECT * FROM lock_state WHERE device_id = ?", (body.device_id,)).fetchone()
+        return _build_state(conn, body.device_id, row)
 
 
 @router.post("/v1/break/claim", response_model=BreakClaimResult)
@@ -294,31 +235,26 @@ async def break_claim(
     file: UploadFile = File(...),
     x_auth: str = Header(default=""),
 ) -> BreakClaimResult:
-    """
-    Submit a photo of yourself eating. If Gemini judges it genuine, grants a
-    short, self-expiring unlock of entertainment apps — capped at a few uses
-    per day. Independent of /v1/work/proof: doesn't touch `unlocked`, doesn't
-    require ending the session, just opens a timed window inside it.
-    """
+    """Start a hard-lock break — requires a Gemini-verified eating photo."""
     _check_auth(x_auth)
 
     with closing(db()) as conn:
-        session = conn.execute(
-            "SELECT session_id FROM work_sessions WHERE device_id = ? AND ended_at IS NULL",
-            (device_id,),
-        ).fetchone()
-        if session is None:
-            raise HTTPException(404, "no active work session")
+        row = _get_or_create_lock_row(conn, device_id)
+        if not _hard_lock_active(row):
+            raise HTTPException(400, "no hard lock active — use /v1/break/start instead")
 
-        breaks_used = _break_count_today(conn, device_id)
-        if breaks_used >= MAX_BREAKS_PER_DAY:
-            breaks_remaining = 0
+        if row["active_break_started_at"] is not None:
+            state = _build_state(conn, device_id, row)
+            return BreakClaimResult(accepted=True, confidence=1.0, reasoning="a break is already active", **state.model_dump())
+
+        breaks_used = _breaks_used_today(conn, device_id)
+        if breaks_used >= MAX_HARDLOCK_BREAKS_PER_DAY:
+            state = _build_state(conn, device_id, row)
             return BreakClaimResult(
                 accepted=False,
                 confidence=0.0,
-                reasoning=f"rejected: daily break limit reached ({breaks_used}/{MAX_BREAKS_PER_DAY})",
-                breaks_used_today=breaks_used,
-                breaks_remaining_today=breaks_remaining,
+                reasoning=f"rejected: daily break limit reached ({breaks_used}/{MAX_HARDLOCK_BREAKS_PER_DAY})",
+                **state.model_dump(),
             )
 
     content_type = file.content_type or "application/octet-stream"
@@ -329,69 +265,112 @@ async def break_claim(
     if len(media_bytes) > MAX_PROOF_BYTES:
         raise HTTPException(413, "photo too large (20MB limit)")
 
-    session_id = session["session_id"]
-    ext = mimetypes.guess_extension(content_type) or ".bin"
-    session_dir = os.path.join(PROOF_DIR, session_id)
-    os.makedirs(session_dir, exist_ok=True)
-    media_path = os.path.join(session_dir, f"{int(time.time())}_{uuid.uuid4().hex[:8]}{ext}")
-    with open(media_path, "wb") as f:
-        f.write(media_bytes)
-
     result = gemini_verify.verify_meal(media_bytes, content_type)
 
-    now = int(time.time())
     with closing(db()) as conn, conn:
-        conn.execute(
-            """
-            INSERT INTO proofs
-                (session_id, device_id, submitted_at, media_path, media_kind, note, verdict, confidence, reasoning, kind)
-            VALUES (?, ?, ?, ?, 'image', NULL, ?, ?, ?, 'meal')
-            """,
-            (
-                session_id,
-                device_id,
-                now,
-                media_path,
-                "accepted" if result.accepted else "rejected",
-                result.confidence,
-                result.reasoning,
-            ),
-        )
-
         if result.accepted:
-            breaks_used += 1
+            now = int(time.time())
             conn.execute(
-                """
-                INSERT INTO eating_breaks (device_id, day, count) VALUES (?, ?, 1)
-                ON CONFLICT(device_id, day) DO UPDATE SET count = count + 1
-                """,
-                (device_id, today()),
+                "UPDATE lock_state SET active_break_started_at = ?, active_break_used_ms = 0 WHERE device_id = ?",
+                (now, device_id),
             )
-            conn.execute(
-                "UPDATE work_sessions SET temp_unlock_until = ? WHERE session_id = ?",
-                (now + BREAK_SECONDS, session_id),
-            )
+            _increment_breaks_used(conn, device_id)
+        row = conn.execute("SELECT * FROM lock_state WHERE device_id = ?", (device_id,)).fetchone()
+        state = _build_state(conn, device_id, row)
 
     return BreakClaimResult(
         accepted=result.accepted,
         confidence=result.confidence,
         reasoning=result.reasoning,
-        breaks_used_today=breaks_used,
-        breaks_remaining_today=max(0, MAX_BREAKS_PER_DAY - breaks_used),
+        **state.model_dump(),
     )
 
 
-@router.post("/v1/work/end")
-def work_end(body: WorkEnd, x_auth: str = Header(default="")) -> dict:
+@router.post("/v1/break/report", response_model=LockState)
+def break_report(body: BreakReportRequest, x_auth: str = Header(default="")) -> LockState:
+    """
+    Phone reports real foreground-usage ms accumulated since its last report
+    while a break is active. Monotonic-safe: a non-positive delta is ignored
+    rather than allowed to claw back used time.
+    """
     _check_auth(x_auth)
-    now = int(time.time())
-
     with closing(db()) as conn, conn:
-        changed = conn.execute(
-            "UPDATE work_sessions SET ended_at = ? WHERE session_id = ? AND device_id = ? AND ended_at IS NULL",
-            (now, body.session_id, body.device_id),
-        ).rowcount
-    if not changed:
-        raise HTTPException(404, "no matching active session")
+        row = _get_or_create_lock_row(conn, body.device_id)
+        if row["active_break_started_at"] is None:
+            return _build_state(conn, body.device_id, row)
 
-    return {"session_id": body.session_id, "ended_at": now}
+        new_used = row["active_break_used_ms"] + max(0, body.delta_ms)
+        if new_used >= BREAK_MS:
+            conn.execute(
+                "UPDATE lock_state SET active_break_started_at = NULL, active_break_used_ms = 0 WHERE device_id = ?",
+                (body.device_id,),
+            )
+        else:
+            conn.execute(
+                "UPDATE lock_state SET active_break_used_ms = ? WHERE device_id = ?",
+                (new_used, body.device_id),
+            )
+        row = conn.execute("SELECT * FROM lock_state WHERE device_id = ?", (body.device_id,)).fetchone()
+        return _build_state(conn, body.device_id, row)
+
+
+@router.post("/v1/lock/hardlock/start", response_model=LockState)
+def hardlock_start(body: HardLockStartRequest, x_auth: str = Header(default="")) -> LockState:
+    _check_auth(x_auth)
+    if not 1 <= body.days <= MAX_HARDLOCK_DAYS:
+        raise HTTPException(400, f"days must be 1..{MAX_HARDLOCK_DAYS}")
+
+    until = (date.fromisoformat(today()) + timedelta(days=body.days)).isoformat()
+    with closing(db()) as conn, conn:
+        _get_or_create_lock_row(conn, body.device_id)
+        conn.execute(
+            """
+            UPDATE lock_state SET
+                hard_lock_until = ?,
+                active_break_started_at = NULL,
+                active_break_used_ms = 0
+            WHERE device_id = ?
+            """,
+            (until, body.device_id),
+        )
+        conn.execute(
+            "INSERT INTO daily_breaks (device_id, day, breaks_used) VALUES (?, ?, 0) ON CONFLICT(device_id, day) DO UPDATE SET breaks_used = 0",
+            (body.device_id, today()),
+        )
+        row = conn.execute("SELECT * FROM lock_state WHERE device_id = ?", (body.device_id,)).fetchone()
+        return _build_state(conn, body.device_id, row)
+
+
+@router.post("/v1/lock/emergency/disable", response_model=LockState)
+def emergency_disable(body: DeviceRequest, x_auth: str = Header(default="")) -> LockState:
+    _check_auth(x_auth)
+    with closing(db()) as conn, conn:
+        row = _get_or_create_lock_row(conn, body.device_id)
+        if row["emergency_month"] == current_month():
+            raise HTTPException(429, "emergency disable already used this month")
+        conn.execute(
+            "UPDATE lock_state SET enabled = 0, emergency_month = ? WHERE device_id = ?",
+            (current_month(), body.device_id),
+        )
+        row = conn.execute("SELECT * FROM lock_state WHERE device_id = ?", (body.device_id,)).fetchone()
+        return _build_state(conn, body.device_id, row)
+
+
+@router.post("/v1/lock/emergency/enable", response_model=LockState)
+def emergency_enable(body: DeviceRequest, x_auth: str = Header(default="")) -> LockState:
+    _check_auth(x_auth)
+    with closing(db()) as conn, conn:
+        _get_or_create_lock_row(conn, body.device_id)
+        conn.execute(
+            """
+            UPDATE lock_state SET
+                enabled = 1,
+                hard_lock_until = NULL,
+                active_break_started_at = NULL,
+                active_break_used_ms = 0
+            WHERE device_id = ?
+            """,
+            (body.device_id,),
+        )
+        row = conn.execute("SELECT * FROM lock_state WHERE device_id = ?", (body.device_id,)).fetchone()
+        return _build_state(conn, body.device_id, row)

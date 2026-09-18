@@ -3,16 +3,14 @@ package com.lockout.gate
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
-import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import com.lockout.gate.state.SessionStore
 
 /**
  * Launched by AppBlockAccessibilityService the instant a blocked app (Chrome,
- * Instagram, YouTube, ...) comes to the foreground during an active, locked
- * work session. No SYSTEM_ALERT_WINDOW overlay permission needed — this
- * activity is simply brought to the front on top of the blocked app, the
- * same technique most Play Store app-blockers use.
+ * Instagram, YouTube, Facebook) comes to the foreground while locked. No
+ * SYSTEM_ALERT_WINDOW overlay permission needed — this activity is simply
+ * brought to the front on top of the blocked app, the same technique most
+ * Play Store app-blockers use.
  */
 class BlockActivity : AppCompatActivity() {
 
@@ -20,14 +18,6 @@ class BlockActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_block)
 
-        val store = SessionStore(this)
-        findViewById<TextView>(R.id.blockMessage).text =
-            getString(R.string.block_message, store.task ?: "")
-
-        findViewById<Button>(R.id.submitProofButton).setOnClickListener {
-            startActivity(Intent(this, ProofActivity::class.java))
-            finish()
-        }
         findViewById<Button>(R.id.eatingBreakButton).setOnClickListener {
             startActivity(Intent(this, BreakActivity::class.java))
             finish()

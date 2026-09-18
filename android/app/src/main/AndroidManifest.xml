@@ -3,9 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
 
     <application
         android:allowBackup="false"
@@ -25,14 +26,9 @@
         </activity>
 
         <activity
-            android:name=".ProofActivity"
-            android:exported="false"
-            android:label="@string/proof_title" />
-
-        <activity
             android:name=".BreakActivity"
             android:exported="false"
-            android:label="@string/eating_break" />
+            android:label="@string/take_break" />
 
         <activity
             android:name=".BlockActivity"

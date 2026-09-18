@@ -21,16 +21,11 @@
         android:id="@+id/blockMessage"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:text="@string/block_message"
         android:textColor="#FFFFFF"
         android:textSize="16sp"
         android:gravity="center"
         android:paddingBottom="32dp" />
-
-    <Button
-        android:id="@+id/submitProofButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/block_submit_proof" />
 
     <Button
         android:id="@+id/eatingBreakButton"

@@ -1,83 +1,96 @@
 package com.lockout.gate.network
 
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Multipart
 import retrofit2.http.POST
-import retrofit2.http.GET
 import retrofit2.http.Part
 import retrofit2.http.Query
 
-data class WorkStartRequest(val device_id: String, val task: String)
-data class WorkStartResponse(val session_id: String, val task: String, val started_at: Long)
-
-data class WorkStateResponse(
-    val active: Boolean,
-    val session_id: String?,
-    val task: String?,
-    val unlocked: Boolean,
-    val breaks_used_today: Int = 0,
-    val breaks_remaining_today: Int = 0,
+data class LockState(
+    val enabled: Boolean,
+    val locked: Boolean,
+    val hard_lock_active: Boolean,
+    val hard_lock_days_remaining: Int,
+    val breaks_used_today: Int,
+    val breaks_remaining_today: Int,
+    val active_break: Boolean,
+    val emergency_available: Boolean,
 )
 
-data class WorkEndRequest(val device_id: String, val session_id: String)
-data class WorkEndResponse(val session_id: String, val ended_at: Long)
-
-data class ProofResponse(val accepted: Boolean, val confidence: Double, val reasoning: String)
+data class DeviceRequest(val device_id: String)
+data class BreakReportRequest(val device_id: String, val delta_ms: Long)
+data class HardLockStartRequest(val device_id: String, val days: Int)
 
 data class BreakClaimResponse(
     val accepted: Boolean,
     val confidence: Double,
     val reasoning: String,
+    val enabled: Boolean,
+    val locked: Boolean,
+    val hard_lock_active: Boolean,
+    val hard_lock_days_remaining: Int,
     val breaks_used_today: Int,
     val breaks_remaining_today: Int,
+    val active_break: Boolean,
+    val emergency_available: Boolean,
 )
 
 data class CheckRequest(val device_id: String, val used_ms: Long)
 data class CheckResponse(val allowed: Boolean, val reason: String, val used_ms: Long, val remaining_ms: Long)
 
 interface LockoutApi {
-    @POST("/v1/work/start")
-    suspend fun startWork(
-        @Header("X-Auth") auth: String,
-        @Body body: WorkStartRequest,
-    ): Response<WorkStartResponse>
-
-    @GET("/v1/work/state")
-    suspend fun workState(
+    @GET("/v1/lock/state")
+    suspend fun lockState(
         @Header("X-Auth") auth: String,
         @Query("device_id") deviceId: String,
-    ): Response<WorkStateResponse>
+    ): Response<LockState>
 
-    @POST("/v1/work/end")
-    suspend fun endWork(
+    @POST("/v1/break/start")
+    suspend fun startBreak(
         @Header("X-Auth") auth: String,
-        @Body body: WorkEndRequest,
-    ): Response<WorkEndResponse>
+        @Body body: DeviceRequest,
+    ): Response<LockState>
 
     @Multipart
-    @POST("/v1/work/proof")
-    suspend fun submitProof(
+    @POST("/v1/break/claim")
+    suspend fun claimBreak(
         @Header("X-Auth") auth: String,
-        @Part("device_id") deviceId: okhttp3.RequestBody,
-        @Part("session_id") sessionId: okhttp3.RequestBody,
-        @Part("note") note: okhttp3.RequestBody,
+        @Part("device_id") deviceId: RequestBody,
         @Part file: MultipartBody.Part,
-    ): Response<ProofResponse>
+    ): Response<BreakClaimResponse>
+
+    @POST("/v1/break/report")
+    suspend fun reportBreakUsage(
+        @Header("X-Auth") auth: String,
+        @Body body: BreakReportRequest,
+    ): Response<LockState>
+
+    @POST("/v1/lock/hardlock/start")
+    suspend fun startHardLock(
+        @Header("X-Auth") auth: String,
+        @Body body: HardLockStartRequest,
+    ): Response<LockState>
+
+    @POST("/v1/lock/emergency/disable")
+    suspend fun emergencyDisable(
+        @Header("X-Auth") auth: String,
+        @Body body: DeviceRequest,
+    ): Response<LockState>
+
+    @POST("/v1/lock/emergency/enable")
+    suspend fun emergencyEnable(
+        @Header("X-Auth") auth: String,
+        @Body body: DeviceRequest,
+    ): Response<LockState>
 
     @POST("/v1/check")
     suspend fun check(
         @Header("X-Auth") auth: String,
         @Body body: CheckRequest,
     ): Response<CheckResponse>
-
-    @Multipart
-    @POST("/v1/break/claim")
-    suspend fun claimBreak(
-        @Header("X-Auth") auth: String,
-        @Part("device_id") deviceId: okhttp3.RequestBody,
-        @Part file: MultipartBody.Part,
-    ): Response<BreakClaimResponse>
 }

@@ -16,40 +16,26 @@
             android:textSize="16sp"
             android:paddingBottom="24dp" />
 
-        <EditText
-            android:id="@+id/taskInput"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="@string/task_hint"
-            android:inputType="text" />
-
         <Button
-            android:id="@+id/startWorkButton"
+            android:id="@+id/takeBreakButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="@string/start_work" />
+            android:text="@string/take_break" />
 
         <Button
-            android:id="@+id/endWorkButton"
+            android:id="@+id/hardLockButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="@string/end_work" />
+            android:text="@string/hard_lock_button" />
 
         <Button
-            android:id="@+id/submitProofButton"
+            android:id="@+id/emergencyButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/submit_proof" />
-
-        <Button
-            android:id="@+id/eatingBreakButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/eating_break" />
+            android:layout_marginTop="24dp"
+            android:text="@string/emergency_disable" />
 
         <Button
             android:id="@+id/enableAccessibilityButton"
@@ -57,6 +43,13 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:text="@string/enable_accessibility" />
+
+        <Button
+            android:id="@+id/enableUsageAccessButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/enable_usage_access" />
 
     </LinearLayout>
 </ScrollView>

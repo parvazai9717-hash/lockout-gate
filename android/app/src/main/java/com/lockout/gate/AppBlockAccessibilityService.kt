@@ -7,6 +7,7 @@ import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.lockout.gate.network.ApiClient
+import com.lockout.gate.network.BreakReportRequest
 import com.lockout.gate.state.SessionStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -16,13 +17,14 @@ import kotlinx.coroutines.launch
 /**
  * Detects the foreground app by package name (android.accessibilityservice,
  * TYPE_WINDOW_STATE_CHANGED) and, if it's on the entertainment blocklist
- * while a work session is active and unresolved, immediately brings
- * BlockActivity to the front. Deliberately whole-app blocking, not
- * in-page URL detection inside Chrome (see Config.ENTERTAINMENT_PACKAGES).
+ * while no break is active, immediately brings BlockActivity to the front.
+ * Deliberately whole-app blocking, not in-page URL detection inside Chrome
+ * (see Config.ENTERTAINMENT_PACKAGES).
  *
- * Blocking decisions read the locally cached SessionStore, refreshed from
- * the server on a timer here, so a block decision never waits on a network
- * round-trip.
+ * While a break IS active, periodically reports real foreground usage of
+ * the watched apps to the server (Config.STATE_REFRESH_INTERVAL_MS) so the
+ * break's 30-minute budget is real usage time, not a wall-clock countdown —
+ * the server is always the source of truth for when it's used up.
  *
  * Also self-protects: if the Package Installer's uninstall-confirmation
  * screen, or Settings' own per-app Accessibility toggle screen, is showing
@@ -36,10 +38,11 @@ class AppBlockAccessibilityService : AccessibilityService() {
     private val scope = CoroutineScope(Dispatchers.IO + job)
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var store: SessionStore
+    private var lastForegroundPackage: String? = null
 
     private val refreshRunnable = object : Runnable {
         override fun run() {
-            refreshState()
+            refreshAndReport()
             handler.postDelayed(this, Config.STATE_REFRESH_INTERVAL_MS)
         }
     }
@@ -54,19 +57,24 @@ class AppBlockAccessibilityService : AccessibilityService() {
         val pkg = event.packageName?.toString() ?: return
         if (pkg == packageName) return // never block ourselves
 
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
-            pkg in Config.ENTERTAINMENT_PACKAGES && store.isLocked()
-        ) {
-            val intent = Intent(this, BlockActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            lastForegroundPackage = pkg
+            if (pkg in Config.ENTERTAINMENT_PACKAGES && store.isLocked()) {
+                blockNow()
+                return
             }
-            startActivity(intent)
-            return
         }
 
         if (pkg in Config.SELF_PROTECT_PACKAGES) {
             checkSelfProtection(pkg)
         }
+    }
+
+    private fun blockNow() {
+        val intent = Intent(this, BlockActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        startActivity(intent)
     }
 
     /**
@@ -120,13 +128,42 @@ class AppBlockAccessibilityService : AccessibilityService() {
         job.cancel()
     }
 
-    private fun refreshState() {
+    /**
+     * Refreshes lock state from the server, and — if a break is currently
+     * active — reports real foreground usage of the watched apps accrued
+     * since the last checkpoint. If the response shows the break just got
+     * used up while an entertainment app is still in the foreground, blocks
+     * immediately rather than waiting for the next app switch.
+     */
+    private fun refreshAndReport() {
         scope.launch {
             try {
-                val resp = ApiClient.api.workState(Config.DEVICE_KEY, Config.DEVICE_ID)
-                val body = resp.body()
-                if (resp.isSuccessful && body != null) {
-                    store.update(body.active, body.session_id, body.task, body.unlocked)
+                if (store.activeBreak && UsageTracker.hasUsageAccess(applicationContext)) {
+                    val now = System.currentTimeMillis()
+                    val checkpoint = store.usageCheckpointMs
+                    val delta = UsageTracker.foregroundMsBetween(
+                        applicationContext, Config.ENTERTAINMENT_PACKAGES, checkpoint, now,
+                    )
+                    val resp = ApiClient.api.reportBreakUsage(
+                        Config.DEVICE_KEY,
+                        BreakReportRequest(Config.DEVICE_ID, delta),
+                    )
+                    val body = resp.body()
+                    if (resp.isSuccessful && body != null) {
+                        store.usageCheckpointMs = now
+                        store.update(body)
+                    }
+                } else {
+                    val resp = ApiClient.api.lockState(Config.DEVICE_KEY, Config.DEVICE_ID)
+                    val body = resp.body()
+                    if (resp.isSuccessful && body != null) {
+                        store.update(body)
+                    }
+                }
+
+                val fg = lastForegroundPackage
+                if (fg != null && fg in Config.ENTERTAINMENT_PACKAGES && store.isLocked()) {
+                    handler.post { blockNow() }
                 }
             } catch (e: Exception) {
                 // Offline — keep enforcing whatever the last known state was.

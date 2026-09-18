@@ -34,7 +34,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="@string/break_submit" />
+            android:text="@string/break_submit_simple" />
 
         <ProgressBar
             android:id="@+id/breakProgressBar"

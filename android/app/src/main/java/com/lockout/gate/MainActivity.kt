@@ -1,59 +1,50 @@
 package com.lockout.gate
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.text.InputType
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.lockout.gate.network.ApiClient
-import com.lockout.gate.network.WorkEndRequest
-import com.lockout.gate.network.WorkStartRequest
+import com.lockout.gate.network.DeviceRequest
+import com.lockout.gate.network.HardLockStartRequest
 import com.lockout.gate.state.SessionStore
 import kotlinx.coroutines.launch
 
+/**
+ * Status + controls screen. All real enforcement happens in
+ * AppBlockAccessibilityService; this is just where you check status, start
+ * a normal-mode break, start a hard lock, or use the monthly emergency
+ * disable/enable switch.
+ */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var store: SessionStore
     private lateinit var statusText: TextView
-    private lateinit var taskInput: EditText
-
-    private val requestNotificationPermission =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* no-op either way */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-
         store = SessionStore(this)
         statusText = findViewById(R.id.statusText)
-        taskInput = findViewById(R.id.taskInput)
 
-        findViewById<Button>(R.id.startWorkButton).setOnClickListener { startWork() }
-        findViewById<Button>(R.id.endWorkButton).setOnClickListener { endWork() }
-        findViewById<Button>(R.id.submitProofButton).setOnClickListener {
-            startActivity(Intent(this, ProofActivity::class.java))
-        }
-        findViewById<Button>(R.id.eatingBreakButton).setOnClickListener {
+        findViewById<Button>(R.id.takeBreakButton).setOnClickListener {
             startActivity(Intent(this, BreakActivity::class.java))
         }
+        findViewById<Button>(R.id.hardLockButton).setOnClickListener { promptHardLock() }
+        findViewById<Button>(R.id.emergencyButton).setOnClickListener { toggleEmergency() }
         findViewById<Button>(R.id.enableAccessibilityButton).setOnClickListener {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        }
+        findViewById<Button>(R.id.enableUsageAccessButton).setOnClickListener {
+            startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
         }
 
         renderStatus()
@@ -65,26 +56,38 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderStatus() {
-        val base = when {
-            !store.active -> getString(R.string.status_idle)
-            store.unlocked -> getString(R.string.status_active, store.task) + "\n" +
-                getString(R.string.status_unlocked)
-            else -> getString(R.string.status_active, store.task) + "\n" +
-                getString(R.string.status_locked)
+        val lines = mutableListOf<String>()
+        lines += if (!store.enabled) {
+            getString(R.string.status_emergency_disabled)
+        } else if (store.hardLockActive) {
+            getString(R.string.status_hard_lock, store.hardLockDaysRemaining)
+        } else {
+            getString(R.string.status_normal)
         }
-        statusText.text = base + "\n" + getString(R.string.status_breaks_remaining, store.breaksRemainingToday)
-        if (store.active) taskInput.setText(store.task)
+        lines += if (store.locked) getString(R.string.status_locked) else getString(R.string.status_unlocked_now)
+        lines += getString(R.string.status_breaks_remaining, store.breaksRemainingToday)
+        lines += if (UsageTracker.hasUsageAccess(this)) {
+            getString(R.string.status_usage_access_ok)
+        } else {
+            getString(R.string.status_usage_access_missing)
+        }
+
+        statusText.text = lines.joinToString("\n")
+
+        findViewById<Button>(R.id.emergencyButton).setText(
+            if (store.enabled) R.string.emergency_disable else R.string.emergency_enable,
+        )
+        findViewById<Button>(R.id.hardLockButton).isEnabled = !store.hardLockActive
     }
 
     private fun refreshFromServer() {
         lifecycleScope.launch {
             try {
-                val resp = ApiClient.api.workState(Config.DEVICE_KEY, Config.DEVICE_ID)
+                val resp = ApiClient.api.lockState(Config.DEVICE_KEY, Config.DEVICE_ID)
                 val body = resp.body()
                 if (resp.isSuccessful && body != null) {
-                    store.update(body.active, body.session_id, body.task, body.unlocked, body.breaks_remaining_today)
+                    store.update(body)
                     renderStatus()
-                    if (body.active) NagWorker.schedule(applicationContext) else NagWorker.cancel(applicationContext)
                 }
             } catch (e: Exception) {
                 // Offline or server unreachable — keep showing the last cached state.
@@ -92,25 +95,41 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun startWork() {
-        val task = taskInput.text.toString().trim()
-        if (task.isEmpty()) {
-            Toast.makeText(this, R.string.task_hint, Toast.LENGTH_SHORT).show()
-            return
+    private fun promptHardLock() {
+        val input = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER
+            hint = getString(R.string.hard_lock_days_hint)
         }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.hard_lock_title)
+            .setMessage(R.string.hard_lock_message)
+            .setView(input)
+            .setPositiveButton(R.string.hard_lock_confirm) { _, _ ->
+                val days = input.text.toString().toIntOrNull()
+                if (days == null || days < 1) {
+                    Toast.makeText(this, R.string.hard_lock_invalid_days, Toast.LENGTH_SHORT).show()
+                } else {
+                    startHardLock(days)
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun startHardLock(days: Int) {
         lifecycleScope.launch {
             try {
-                val resp = ApiClient.api.startWork(
+                val resp = ApiClient.api.startHardLock(
                     Config.DEVICE_KEY,
-                    WorkStartRequest(Config.DEVICE_ID, task),
+                    HardLockStartRequest(Config.DEVICE_ID, days),
                 )
                 val body = resp.body()
                 if (resp.isSuccessful && body != null) {
-                    store.update(active = true, sessionId = body.session_id, task = body.task, unlocked = false)
+                    store.update(body)
                     renderStatus()
-                    NagWorker.schedule(applicationContext)
+                    Toast.makeText(this@MainActivity, getString(R.string.hard_lock_started, days), Toast.LENGTH_LONG).show()
                 } else {
-                    Toast.makeText(this@MainActivity, "Could not start session (server error)", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, "Could not start hard lock (server error)", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, "Could not reach server: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -118,18 +137,42 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun endWork() {
-        val sessionId = store.sessionId ?: return
+    private fun toggleEmergency() {
+        val goingToDisable = store.enabled
+        val action: suspend () -> retrofit2.Response<com.lockout.gate.network.LockState> = {
+            if (goingToDisable) {
+                ApiClient.api.emergencyDisable(Config.DEVICE_KEY, DeviceRequest(Config.DEVICE_ID))
+            } else {
+                ApiClient.api.emergencyEnable(Config.DEVICE_KEY, DeviceRequest(Config.DEVICE_ID))
+            }
+        }
+
+        if (goingToDisable) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.emergency_confirm_title)
+                .setMessage(R.string.emergency_confirm_message)
+                .setPositiveButton(R.string.emergency_confirm_yes) { _, _ -> runEmergencyAction(action) }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        } else {
+            runEmergencyAction(action)
+        }
+    }
+
+    private fun runEmergencyAction(action: suspend () -> retrofit2.Response<com.lockout.gate.network.LockState>) {
         lifecycleScope.launch {
             try {
-                ApiClient.api.endWork(Config.DEVICE_KEY, WorkEndRequest(Config.DEVICE_ID, sessionId))
+                val resp = action()
+                val body = resp.body()
+                if (resp.isSuccessful && body != null) {
+                    store.update(body)
+                    renderStatus()
+                } else {
+                    Toast.makeText(this@MainActivity, "Server error (${resp.code()})", Toast.LENGTH_SHORT).show()
+                }
             } catch (e: Exception) {
-                // Best-effort; fall through and clear local state regardless so
-                // the user isn't stuck if the server is briefly unreachable.
+                Toast.makeText(this@MainActivity, "Could not reach server: ${e.message}", Toast.LENGTH_SHORT).show()
             }
-            store.update(active = false, sessionId = null, task = null, unlocked = false)
-            renderStatus()
-            NagWorker.cancel(applicationContext)
         }
     }
 }

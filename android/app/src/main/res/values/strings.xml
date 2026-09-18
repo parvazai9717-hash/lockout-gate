@@ -1,39 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Lockout Gate</string>
-    <string name="proof_title">Submit Proof</string>
-    <string name="accessibility_service_description">Watches which app is in the foreground so Lockout Gate can block time-wasting apps during an active work session. Also protects itself: reads on-screen text only within Settings and the Package Installer, to detect and bounce out of attempts to disable this service or uninstall this app from the phone (use a PC with ADB instead).</string>
+    <string name="accessibility_service_description">Watches which app is in the foreground so Lockout Gate can block time-wasting apps unless a break is active. Also protects itself: reads on-screen text only within Settings and the Package Installer, to detect and bounce out of attempts to disable this service or uninstall this app from the phone (use a PC with ADB instead).</string>
 
-    <string name="task_hint">What are you working on?</string>
-    <string name="start_work">Start work</string>
-    <string name="end_work">End work for today</string>
-    <string name="status_idle">No active work session.</string>
-    <string name="status_active">Working on: %1$s</string>
-    <string name="status_unlocked">Unlocked — proof accepted for this session.</string>
-    <string name="status_locked">Locked — submit proof to unlock entertainment apps.</string>
+    <string name="status_normal">Normal mode.</string>
+    <string name="status_hard_lock">Hard lock active — %1$d day(s) remaining.</string>
+    <string name="status_emergency_disabled">Emergency disabled — blocking is OFF.</string>
+    <string name="status_locked">Locked.</string>
+    <string name="status_unlocked_now">Unlocked right now (break active).</string>
+    <string name="status_breaks_remaining">Breaks remaining today: %1$d</string>
+    <string name="status_usage_access_ok">Usage access: granted.</string>
+    <string name="status_usage_access_missing">Usage access: MISSING — breaks can\'t be tracked. Tap "Enable usage access" below.</string>
+
+    <string name="take_break">Take a break</string>
+    <string name="hard_lock_button">Start hard lock</string>
+    <string name="emergency_disable">Emergency: disable blocking</string>
+    <string name="emergency_enable">Emergency: re-enable blocking</string>
     <string name="enable_accessibility">Enable blocking service</string>
-    <string name="submit_proof">Submit proof</string>
+    <string name="enable_usage_access">Enable usage access</string>
+
+    <string name="hard_lock_title">Start hard lock</string>
+    <string name="hard_lock_message">Chrome, Instagram, YouTube, and Facebook will be hard-blocked. How many days?</string>
+    <string name="hard_lock_days_hint">Number of days</string>
+    <string name="hard_lock_confirm">Start</string>
+    <string name="hard_lock_invalid_days">Enter a valid number of days</string>
+    <string name="hard_lock_started">Hard lock started for %1$d day(s).</string>
+
+    <string name="emergency_confirm_title">Disable blocking?</string>
+    <string name="emergency_confirm_message">This turns off all blocking until you re-enable it. You can only do this once a month.</string>
+    <string name="emergency_confirm_yes">Disable</string>
+
+    <string name="break_info">%1$d break(s) left today, %2$d real minutes each.</string>
+    <string name="break_pick_photo">Choose photo</string>
+    <string name="break_submit_simple">Start break</string>
+    <string name="break_submit_photo">Submit photo</string>
+    <string name="break_result_started">Break started — %1$d real minutes on the watched apps.</string>
+    <string name="break_result_rejected">Rejected: %1$s</string>
+    <string name="break_result_limit_reached">Daily break limit already reached.</string>
 
     <string name="block_title">Blocked</string>
-    <string name="block_message">You said you were working on:\n“%1$s”\n\nSubmit proof to unlock.</string>
-    <string name="block_submit_proof">Submit proof</string>
-    <string name="block_back_to_work">Back to work</string>
-
-    <string name="proof_note_hint">Describe what you did</string>
-    <string name="proof_pick_media">Choose screenshot or video</string>
-    <string name="proof_submit">Submit</string>
-    <string name="proof_result_accepted">Accepted — unlocked.</string>
-    <string name="proof_result_rejected">Rejected: %1$s</string>
-
-    <string name="eating_break">Eating break</string>
-    <string name="break_info">Take a photo of yourself eating right now. %1$d break(s) left today.</string>
-    <string name="status_breaks_remaining">Eating breaks left today: %1$d</string>
-    <string name="break_pick_photo">Choose photo</string>
-    <string name="break_submit">Submit</string>
-    <string name="break_result_accepted">Accepted — unlocked for %1$d minutes.</string>
-    <string name="break_result_rejected">Rejected: %1$s</string>
-    <string name="block_eating_break">I\'m eating</string>
-
-    <string name="nag_channel_name">Work check-ins</string>
-    <string name="nag_channel_desc">Periodic reminders during an active work session</string>
+    <string name="block_message">Blocked. Take a break to unlock, or go back.</string>
+    <string name="block_eating_break">Take a break</string>
+    <string name="block_back_to_work">Back to home screen</string>
 </resources>

@@ -1,9 +1,8 @@
 """
-Gemini-backed proof verification.
+Gemini-backed eating-photo verification.
 
-This is the part of the "work session" layer that actually judges whether a
-submitted screenshot/video is real evidence of the task the user declared
-when they started the session — not a rubber stamp.
+Judges whether a submitted photo is genuine, current evidence that the user
+is actually eating — the only thing that earns a hard-lock break.
 
 Fail-closed: any error talking to Gemini, or any response that doesn't parse
 into a clean verdict, is treated as a rejection. Same trust posture as the
@@ -44,33 +43,8 @@ class VerifyResult(BaseModel):
     reasoning: str
 
 
-PROMPT_TEMPLATE = """\
-You are a strict work-accountability auditor. The user claimed they were \
-doing this task:
-
-    TASK: {task}
-
-They submitted this note along with a screenshot or short screen-recording \
-as proof:
-
-    NOTE: {note}
-
-Judge whether the attached media is clear, specific, and current evidence \
-that the user was actively doing exactly that task — not a generic app \
-being open, not an old or unrelated screenshot, not a stock image, not \
-something that merely looks work-adjacent. Be skeptical by default: if the \
-media is ambiguous, vague, low-effort, or could plausibly have nothing to \
-do with the stated task, reject it. Only accept when the evidence \
-unambiguously matches the stated task.
-
-Respond with your verdict ("accepted" or "rejected"), a confidence from \
-0.0 to 1.0, and a short one or two sentence reasoning explaining exactly \
-what you saw and why it does or doesn't match.
-"""
-
-
 def _ask_gemini(prompt: str, media_bytes: bytes, mime_type: str) -> VerifyResult:
-    """Shared Gemini call + fail-closed error handling for both verifiers."""
+    """Gemini call + fail-closed error handling."""
     try:
         client = _get_client()
         response = client.models.generate_content(
@@ -102,12 +76,6 @@ def _ask_gemini(prompt: str, media_bytes: bytes, mime_type: str) -> VerifyResult
             confidence=0.0,
             reasoning=f"rejected: could not verify ({e})",
         )
-
-
-def verify(task: str, note: str, media_bytes: bytes, mime_type: str) -> VerifyResult:
-    """Ask Gemini whether media_bytes is genuine proof of `task`. Fails closed."""
-    prompt = PROMPT_TEMPLATE.format(task=task, note=note or "(no note given)")
-    return _ask_gemini(prompt, media_bytes, mime_type)
 
 
 MEAL_PROMPT_TEMPLATE = """\
