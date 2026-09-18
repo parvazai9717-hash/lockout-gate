@@ -37,6 +37,7 @@
     <string name="break_result_started">Break started — %1$d real minutes on the watched apps.</string>
     <string name="break_result_rejected">Rejected: %1$s</string>
     <string name="break_result_limit_reached">Daily break limit already reached.</string>
+    <string name="break_needs_usage_access">Usage access is required so breaks can be tracked and expire correctly. Please enable it.</string>
 
     <string name="block_title">Blocked</string>
     <string name="block_message">Blocked. Take a break to unlock, or go back.</string>

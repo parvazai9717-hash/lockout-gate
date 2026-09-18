@@ -38,7 +38,12 @@ data class BreakClaimResponse(
     val breaks_remaining_today: Int,
     val active_break: Boolean,
     val emergency_available: Boolean,
-)
+) {
+    fun toLockState() = LockState(
+        enabled, locked, hard_lock_active, hard_lock_days_remaining,
+        breaks_used_today, breaks_remaining_today, active_break, emergency_available,
+    )
+}
 
 data class CheckRequest(val device_id: String, val used_ms: Long)
 data class CheckResponse(val allowed: Boolean, val reason: String, val used_ms: Long, val remaining_ms: Long)

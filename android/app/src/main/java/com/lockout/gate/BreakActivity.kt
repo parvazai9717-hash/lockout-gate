@@ -1,7 +1,9 @@
 package com.lockout.gate
 
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.view.View
 import android.widget.Button
 import android.widget.ProgressBar
@@ -93,6 +95,11 @@ class BreakActivity : AppCompatActivity() {
     }
 
     private fun submit() {
+        if (!UsageTracker.hasUsageAccess(this)) {
+            Toast.makeText(this, R.string.break_needs_usage_access, Toast.LENGTH_LONG).show()
+            startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+            return
+        }
         if (hardLockActive) submitWithPhoto() else submitSimple()
     }
 
@@ -152,6 +159,7 @@ class BreakActivity : AppCompatActivity() {
                 progressBar.visibility = View.GONE
                 val body = response.body()
                 if (response.isSuccessful && body != null) {
+                    store.update(body.toLockState())
                     resultText.text = if (body.accepted) {
                         getString(R.string.break_result_started, Config.BREAK_MINUTES)
                     } else {
