@@ -49,6 +49,9 @@ class MainActivity : AppCompatActivity() {
         store = SessionStore(this)
         statusText = findViewById(R.id.statusText)
 
+        findViewById<Button>(R.id.manageAppsButton).setOnClickListener {
+            startActivity(Intent(this, AppPickerActivity::class.java))
+        }
         findViewById<Button>(R.id.takeBreakButton).setOnClickListener {
             startActivity(Intent(this, BreakActivity::class.java))
         }
@@ -149,7 +152,7 @@ class MainActivity : AppCompatActivity() {
     private fun refreshFromServer() {
         lifecycleScope.launch {
             try {
-                val resp = ApiClient.api.lockState(Config.DEVICE_KEY, Config.DEVICE_ID)
+                val resp = ApiClient.api.lockState(Config.DEVICE_KEY, store.deviceId)
                 val body = resp.body()
                 if (resp.isSuccessful && body != null) {
                     store.update(body)
@@ -187,7 +190,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 val resp = ApiClient.api.startHardLock(
                     Config.DEVICE_KEY,
-                    HardLockStartRequest(Config.DEVICE_ID, days),
+                    HardLockStartRequest(store.deviceId, days),
                 )
                 val body = resp.body()
                 if (resp.isSuccessful && body != null) {
@@ -207,9 +210,9 @@ class MainActivity : AppCompatActivity() {
         val goingToDisable = store.enabled
         val action: suspend () -> retrofit2.Response<com.lockout.gate.network.LockState> = {
             if (goingToDisable) {
-                ApiClient.api.emergencyDisable(Config.DEVICE_KEY, DeviceRequest(Config.DEVICE_ID))
+                ApiClient.api.emergencyDisable(Config.DEVICE_KEY, DeviceRequest(store.deviceId))
             } else {
-                ApiClient.api.emergencyEnable(Config.DEVICE_KEY, DeviceRequest(Config.DEVICE_ID))
+                ApiClient.api.emergencyEnable(Config.DEVICE_KEY, DeviceRequest(store.deviceId))
             }
         }
 

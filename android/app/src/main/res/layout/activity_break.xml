@@ -82,6 +82,61 @@
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
+                    <!-- Flexible Break Duration Selector -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:letterSpacing="0.05"
+                        android:text="@string/label_break_duration"
+                        android:textColor="@color/text_secondary_light"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/breakDurationChipGroup"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        app:singleSelection="true">
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chip10Min"
+                            style="@style/Widget.Material3.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="10 mins" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chip15Min"
+                            style="@style/Widget.Material3.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="15 mins" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chip20Min"
+                            style="@style/Widget.Material3.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="20 mins" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chip30Min"
+                            style="@style/Widget.Material3.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="true"
+                            android:text="30 mins" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chip45Min"
+                            style="@style/Widget.Material3.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="45 mins" />
+                    </com.google.android.material.chip.ChipGroup>
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/pickPhotoButton"
                         style="@style/Widget.Material3.Button.OutlinedButton"

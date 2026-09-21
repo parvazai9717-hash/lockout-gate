@@ -4,7 +4,10 @@ import android.accessibilityservice.AccessibilityService
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Handler
 import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
@@ -45,11 +48,30 @@ class AppBlockAccessibilityService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var store: SessionStore
     private var lastForegroundPackage: String? = null
+    private var isScreenInteractive = true
+
+    private val screenStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                Intent.ACTION_SCREEN_OFF -> {
+                    isScreenInteractive = false
+                    handler.removeCallbacks(refreshRunnable)
+                }
+                Intent.ACTION_SCREEN_ON -> {
+                    isScreenInteractive = true
+                    handler.removeCallbacks(refreshRunnable)
+                    handler.post(refreshRunnable)
+                }
+            }
+        }
+    }
 
     private val refreshRunnable = object : Runnable {
         override fun run() {
-            refreshAndReport()
-            handler.postDelayed(this, Config.STATE_REFRESH_INTERVAL_MS)
+            if (isScreenInteractive) {
+                refreshAndReport()
+                handler.postDelayed(this, Config.STATE_REFRESH_INTERVAL_MS)
+            }
         }
     }
 
@@ -57,6 +79,13 @@ class AppBlockAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         store = SessionStore(this)
         createNotificationChannel()
+
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+        }
+        registerReceiver(screenStateReceiver, filter)
+
         handler.post(refreshRunnable)
     }
 
@@ -66,7 +95,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             lastForegroundPackage = pkg
-            if (pkg in Config.ENTERTAINMENT_PACKAGES && store.isLocked()) {
+            if (pkg in store.getAllBlockedPackages() && store.isLocked()) {
                 blockNow()
                 return
             }
@@ -211,6 +240,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
     private fun refreshAndReport() {
         scope.launch {
             try {
+                val blockedPkgs = store.getAllBlockedPackages()
                 if (store.activeBreak) {
                     val now = System.currentTimeMillis()
                     val checkpoint = store.usageCheckpointMs
@@ -220,14 +250,14 @@ class AppBlockAccessibilityService : AccessibilityService() {
                     }
                     val delta = if (UsageTracker.hasUsageAccess(applicationContext)) {
                         UsageTracker.foregroundMsBetween(
-                            applicationContext, Config.ENTERTAINMENT_PACKAGES, checkpoint, now,
+                            applicationContext, blockedPkgs, checkpoint, now,
                         )
                     } else {
                         now - checkpoint
                     }
                     val resp = ApiClient.api.reportBreakUsage(
                         Config.DEVICE_KEY,
-                        BreakReportRequest(Config.DEVICE_ID, delta),
+                        BreakReportRequest(store.deviceId, delta),
                     )
                     val body = resp.body()
                     if (resp.isSuccessful && body != null) {
@@ -236,7 +266,8 @@ class AppBlockAccessibilityService : AccessibilityService() {
                         store.update(body)
                     }
 
-                    val remainingMs = (Config.BREAK_MS - store.cumulativeBreakUsageMs).coerceAtLeast(0L)
+                    val breakDurationMs = store.selectedBreakMinutes * 60_000L
+                    val remainingMs = (breakDurationMs - store.cumulativeBreakUsageMs).coerceAtLeast(0L)
                     updateBreakNotification(remainingMs)
                     checkPreBlockWarnings(remainingMs)
                 } else {
@@ -244,7 +275,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
                     if (store.isLocked()) {
                         store.addSavedTime(Config.STATE_REFRESH_INTERVAL_MS)
                     }
-                    val resp = ApiClient.api.lockState(Config.DEVICE_KEY, Config.DEVICE_ID)
+                    val resp = ApiClient.api.lockState(Config.DEVICE_KEY, store.deviceId)
                     val body = resp.body()
                     if (resp.isSuccessful && body != null) {
                         store.update(body)
@@ -252,7 +283,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
                 }
 
                 val fg = lastForegroundPackage ?: rootInActiveWindow?.packageName?.toString()
-                if (fg != null && fg in Config.ENTERTAINMENT_PACKAGES && store.isLocked()) {
+                if (fg != null && fg in blockedPkgs && store.isLocked()) {
                     handler.post { blockNow() }
                 }
             } catch (e: Exception) {

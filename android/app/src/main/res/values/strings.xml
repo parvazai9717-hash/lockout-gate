@@ -71,4 +71,14 @@
     <string name="reset_background">Reset Background</string>
     <string name="background_updated">High-quality custom background applied!</string>
     <string name="background_reset">Reset to default theme background.</string>
+
+    <string name="title_manage_apps">Manage Blocked Apps</string>
+    <string name="btn_manage_apps">Manage Blocked Apps</string>
+    <string name="tab_standard">Standard Mode</string>
+    <string name="tab_strict_permanent">Permanent Strict Mode</string>
+    <string name="strict_confirm_title">Lock App Permanently?</string>
+    <string name="strict_confirm_message">Are you sure you want to add %1$s to Permanent Lock? Once added, this app CANNOT be deselected or unblocked!</string>
+    <string name="strict_confirm_yes">Yes, Lock Permanently</string>
+    <string name="badge_permanent_lock">PERMANENT LOCK</string>
+    <string name="label_break_duration">Break Duration</string>
 </resources>

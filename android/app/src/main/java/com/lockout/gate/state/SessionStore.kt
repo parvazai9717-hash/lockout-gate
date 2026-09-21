@@ -2,8 +2,10 @@ package com.lockout.gate.state
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.lockout.gate.Config
 import com.lockout.gate.network.LockState
 import java.util.Calendar
+import java.util.UUID
 
 /**
  * Local cache of the server's /v1/lock/state, so the accessibility service
@@ -90,6 +92,33 @@ class SessionStore(context: Context) {
         get() = prefs.getString(KEY_CUSTOM_BACKGROUND, null)
         set(value) = prefs.edit().putString(KEY_CUSTOM_BACKGROUND, value).apply()
 
+    var standardBlockedPackages: Set<String>
+        get() = prefs.getStringSet(KEY_STANDARD_BLOCKED_PACKAGES, emptySet()) ?: emptySet()
+        set(value) = prefs.edit().putStringSet(KEY_STANDARD_BLOCKED_PACKAGES, value).apply()
+
+    var strictBlockedPackages: Set<String>
+        get() = prefs.getStringSet(KEY_STRICT_BLOCKED_PACKAGES, emptySet()) ?: emptySet()
+        set(value) = prefs.edit().putStringSet(KEY_STRICT_BLOCKED_PACKAGES, value).apply()
+
+    var selectedBreakMinutes: Int
+        get() = prefs.getInt(KEY_SELECTED_BREAK_MINUTES, 30)
+        set(value) = prefs.edit().putInt(KEY_SELECTED_BREAK_MINUTES, value).apply()
+
+    var deviceId: String
+        get() {
+            var id = prefs.getString(KEY_DEVICE_ID, null)
+            if (id.isNullOrEmpty()) {
+                id = UUID.randomUUID().toString()
+                prefs.edit().putString(KEY_DEVICE_ID, id).apply()
+            }
+            return id
+        }
+        set(value) = prefs.edit().putString(KEY_DEVICE_ID, value).apply()
+
+    fun getAllBlockedPackages(): Set<String> {
+        return Config.ENTERTAINMENT_PACKAGES + standardBlockedPackages + strictBlockedPackages
+    }
+
     fun checkDailyAnalyticsReset() {
         val currentDay = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
         val lastDay = lastAnalyticsDayOfYear
@@ -153,5 +182,9 @@ class SessionStore(context: Context) {
         private const val KEY_STREAK_DAYS = "streak_days"
         private const val KEY_LAST_ANALYTICS_DAY = "last_analytics_day"
         private const val KEY_CUSTOM_BACKGROUND = "custom_background_path"
+        private const val KEY_STANDARD_BLOCKED_PACKAGES = "standard_blocked_packages"
+        private const val KEY_STRICT_BLOCKED_PACKAGES = "strict_blocked_packages"
+        private const val KEY_SELECTED_BREAK_MINUTES = "selected_break_minutes"
+        private const val KEY_DEVICE_ID = "device_id"
     }
 }

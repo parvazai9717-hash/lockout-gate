@@ -14,6 +14,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.chip.ChipGroup
 import com.lockout.gate.network.ApiClient
 import com.lockout.gate.network.DeviceRequest
 import com.lockout.gate.state.SessionStore
@@ -61,13 +62,27 @@ class BreakActivity : AppCompatActivity() {
         }
         findViewById<Button>(R.id.submitBreakButton).setOnClickListener { submit() }
 
+        val chipGroup = findViewById<ChipGroup>(R.id.breakDurationChipGroup)
+        chipGroup?.setOnCheckedStateChangeListener { _, checkedIds ->
+            if (checkedIds.isNotEmpty()) {
+                val mins = when (checkedIds.first()) {
+                    R.id.chip10Min -> 10
+                    R.id.chip15Min -> 15
+                    R.id.chip20Min -> 20
+                    R.id.chip45Min -> 45
+                    else -> 30
+                }
+                store.selectedBreakMinutes = mins
+            }
+        }
+
         refreshAndRender()
     }
 
     private fun refreshAndRender() {
         lifecycleScope.launch {
             try {
-                val resp = ApiClient.api.lockState(Config.DEVICE_KEY, Config.DEVICE_ID)
+                val resp = ApiClient.api.lockState(Config.DEVICE_KEY, store.deviceId)
                 val body = resp.body()
                 if (resp.isSuccessful && body != null) {
                     store.update(body)
@@ -82,7 +97,7 @@ class BreakActivity : AppCompatActivity() {
     private fun render() {
         hardLockActive = store.hardLockActive
         findViewById<TextView>(R.id.breakInfoText).text = getString(
-            R.string.break_info, store.breaksRemainingToday, Config.BREAK_MINUTES,
+            R.string.break_info, store.breaksRemainingToday, store.selectedBreakMinutes,
         )
         val needsPhoto = hardLockActive
         findViewById<Button>(R.id.pickPhotoButton).visibility = if (needsPhoto) View.VISIBLE else View.GONE
@@ -119,12 +134,12 @@ class BreakActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                val resp = ApiClient.api.startBreak(Config.DEVICE_KEY, DeviceRequest(Config.DEVICE_ID))
+                val resp = ApiClient.api.startBreak(Config.DEVICE_KEY, DeviceRequest(store.deviceId))
                 progressBar.visibility = View.GONE
                 val body = resp.body()
                 if (resp.isSuccessful && body != null) {
                     store.update(body)
-                    resultText.text = getString(R.string.break_result_started, Config.BREAK_MINUTES)
+                    resultText.text = getString(R.string.break_result_started, store.selectedBreakMinutes)
                 } else if (resp.code() == 429) {
                     resultText.text = getString(R.string.break_result_limit_reached)
                 } else {
@@ -160,7 +175,7 @@ class BreakActivity : AppCompatActivity() {
                     )
                     ApiClient.api.claimBreak(
                         Config.DEVICE_KEY,
-                        Config.DEVICE_ID.toRequestBody("text/plain".toMediaTypeOrNull()),
+                        store.deviceId.toRequestBody("text/plain".toMediaTypeOrNull()),
                         filePart,
                     )
                 }
@@ -169,7 +184,7 @@ class BreakActivity : AppCompatActivity() {
                 if (response.isSuccessful && body != null) {
                     store.update(body.toLockState())
                     resultText.text = if (body.accepted) {
-                        getString(R.string.break_result_started, Config.BREAK_MINUTES)
+                        getString(R.string.break_result_started, store.selectedBreakMinutes)
                     } else {
                         getString(R.string.break_result_rejected, body.reasoning)
                     }

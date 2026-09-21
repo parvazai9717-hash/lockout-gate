@@ -16,13 +16,6 @@ object Config {
     const val DEVICE_KEY: String = BuildConfig.DEVICE_KEY
 
     /**
-     * Identifies this phone to the server. Android's Settings.Secure.ANDROID_ID
-     * would also work; a fixed string is simpler for a single-device setup and
-     * avoids the (small, since API 26) chance it changes across a factory reset.
-     */
-    const val DEVICE_ID: String = "primary"
-
-    /**
      * Whole apps blocked outright unless a break is currently active.
      * Deliberately package-level, not URL-level, inside Chrome — reading
      * Chrome's address bar via the accessibility service is fragile and
