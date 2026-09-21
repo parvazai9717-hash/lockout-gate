@@ -267,6 +267,11 @@ class AppBlockAccessibilityService : AccessibilityService() {
                     }
 
                     val breakDurationMs = store.selectedBreakMinutes * 60_000L
+                    if (store.cumulativeBreakUsageMs >= breakDurationMs) {
+                        store.activeBreak = false
+                        store.locked = true
+                    }
+
                     val remainingMs = (breakDurationMs - store.cumulativeBreakUsageMs).coerceAtLeast(0L)
                     updateBreakNotification(remainingMs)
                     checkPreBlockWarnings(remainingMs)
