@@ -2,7 +2,9 @@ package com.lockout.gate
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.Button
+import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
 
 /**
@@ -17,6 +19,12 @@ class BlockActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_block)
+
+        val bgImageView = findViewById<ImageView>(R.id.customBackgroundImageView)
+        val scrimView = findViewById<View>(R.id.backgroundScrimView)
+        if (bgImageView != null) {
+            BackgroundHelper.applyCustomBackground(this, bgImageView, scrimView)
+        }
 
         findViewById<Button>(R.id.eatingBreakButton).setOnClickListener {
             startActivity(Intent(this, BreakActivity::class.java))
@@ -33,6 +41,7 @@ class BlockActivity : AppCompatActivity() {
         }
     }
 
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION", "MissingSuperCall")
     override fun onBackPressed() {
         // Blocked means blocked — don't let the back gesture reveal the app underneath.
         val homeIntent = Intent(Intent.ACTION_MAIN).apply {

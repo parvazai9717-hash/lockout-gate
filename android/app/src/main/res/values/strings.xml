@@ -43,4 +43,32 @@
     <string name="block_message">Blocked. Take a break to unlock, or go back.</string>
     <string name="block_eating_break">Take a break</string>
     <string name="block_back_to_work">Back to home screen</string>
+
+    <string name="notification_channel_name">Break Status</string>
+    <string name="notification_break_title">Break Active</string>
+    <string name="notification_break_content">Remaining break budget: %1$d min %2$d sec</string>
+    <string name="warning_5_minutes">Lockout Gate: 5 minutes remaining in your break!</string>
+    <string name="warning_1_minute">Lockout Gate: 1 minute remaining in your break!</string>
+
+    <string name="app_subtitle">Focus &amp; App Lockout Enforcement</string>
+    <string name="label_protection_state">PROTECTION STATE</string>
+    <string name="label_required_permissions">REQUIRED PERMISSIONS</string>
+    <string name="label_accessibility_service">Accessibility Service</string>
+    <string name="label_usage_stats_access">Usage Stats Access</string>
+    <string name="label_controls">CONTROLS</string>
+    <string name="badge_locked">LOCKED</string>
+    <string name="badge_unlocked">BREAK ACTIVE</string>
+    <string name="badge_hard_lock">HARD LOCK</string>
+    <string name="badge_disabled">OFF</string>
+
+    <string name="label_analytics">ANALYTICS &amp; SAVINGS</string>
+    <string name="stat_time_saved_title">Saved Today</string>
+    <string name="stat_breaks_used_title">Breaks Used</string>
+    <string name="stat_streak_title">Focus Streak</string>
+    <string name="stat_days_format">%1$d Days</string>
+
+    <string name="customize_background">Customize Background</string>
+    <string name="reset_background">Reset Background</string>
+    <string name="background_updated">High-quality custom background applied!</string>
+    <string name="background_reset">Reset to default theme background.</string>
 </resources>

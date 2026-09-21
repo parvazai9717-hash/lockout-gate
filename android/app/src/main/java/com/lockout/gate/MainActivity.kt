@@ -4,10 +4,14 @@ import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
 import android.text.InputType
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -28,6 +32,16 @@ class MainActivity : AppCompatActivity() {
     private lateinit var store: SessionStore
     private lateinit var statusText: TextView
 
+    private val pickBackgroundMedia = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            val success = BackgroundHelper.saveCustomBackground(this, uri)
+            if (success) {
+                Toast.makeText(this, R.string.background_updated, Toast.LENGTH_SHORT).show()
+                applyBackground()
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -46,38 +60,90 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.enableUsageAccessButton).setOnClickListener {
             startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
         }
+        findViewById<Button>(R.id.customizeBackgroundButton).setOnClickListener {
+            pickBackgroundMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }
+        findViewById<Button>(R.id.resetBackgroundButton).setOnClickListener {
+            BackgroundHelper.clearCustomBackground(this)
+            Toast.makeText(this, R.string.background_reset, Toast.LENGTH_SHORT).show()
+            applyBackground()
+        }
 
         renderStatus()
     }
 
     override fun onResume() {
         super.onResume()
+        applyBackground()
         refreshFromServer()
     }
 
     private fun renderStatus() {
-        val lines = mutableListOf<String>()
-        lines += if (!store.enabled) {
-            getString(R.string.status_emergency_disabled)
+        val statusBadge = findViewById<TextView>(R.id.statusBadge)
+        val breaksRemainingText = findViewById<TextView>(R.id.breaksRemainingText)
+
+        val mainStatus: String
+        val badgeText: String
+        val badgeBgColor: Int
+
+        if (!store.enabled) {
+            mainStatus = getString(R.string.status_emergency_disabled)
+            badgeText = getString(R.string.badge_disabled)
+            badgeBgColor = getColor(R.color.status_locked)
         } else if (store.hardLockActive) {
-            getString(R.string.status_hard_lock, store.hardLockDaysRemaining)
+            mainStatus = getString(R.string.status_hard_lock, store.hardLockDaysRemaining)
+            badgeText = getString(R.string.badge_hard_lock)
+            badgeBgColor = getColor(R.color.status_warning)
+        } else if (!store.locked) {
+            mainStatus = getString(R.string.status_unlocked_now)
+            badgeText = getString(R.string.badge_unlocked)
+            badgeBgColor = getColor(R.color.status_unlocked)
         } else {
-            getString(R.string.status_normal)
-        }
-        lines += if (store.locked) getString(R.string.status_locked) else getString(R.string.status_unlocked_now)
-        lines += getString(R.string.status_breaks_remaining, store.breaksRemainingToday)
-        lines += if (UsageTracker.hasUsageAccess(this)) {
-            getString(R.string.status_usage_access_ok)
-        } else {
-            getString(R.string.status_usage_access_missing)
+            mainStatus = getString(R.string.status_locked)
+            badgeText = getString(R.string.badge_locked)
+            badgeBgColor = getColor(R.color.status_locked)
         }
 
-        statusText.text = lines.joinToString("\n")
+        statusText.text = mainStatus
+        statusBadge.text = badgeText
+        statusBadge.setBackgroundColor(badgeBgColor)
+
+        breaksRemainingText.text = getString(R.string.status_breaks_remaining, store.breaksRemainingToday)
+
+        val timeSavedValueText = findViewById<TextView>(R.id.timeSavedValueText)
+        val breaksUsedValueText = findViewById<TextView>(R.id.breaksUsedValueText)
+        val streakValueText = findViewById<TextView>(R.id.streakValueText)
+
+        timeSavedValueText?.text = formatSavedTime(store.timeSavedMsToday)
+        breaksUsedValueText?.text = store.breaksUsedToday.toString()
+        streakValueText?.text = getString(R.string.stat_days_format, store.streakDays)
 
         findViewById<Button>(R.id.emergencyButton).setText(
             if (store.enabled) R.string.emergency_disable else R.string.emergency_enable,
         )
         findViewById<Button>(R.id.hardLockButton).isEnabled = !store.hardLockActive
+    }
+
+    private fun applyBackground() {
+        val bgImageView = findViewById<ImageView>(R.id.customBackgroundImageView)
+        val scrimView = findViewById<View>(R.id.backgroundScrimView)
+        val resetButton = findViewById<Button>(R.id.resetBackgroundButton)
+
+        if (bgImageView != null) {
+            BackgroundHelper.applyCustomBackground(this, bgImageView, scrimView)
+            resetButton?.visibility = if (store.customBackgroundPath != null) View.VISIBLE else View.GONE
+        }
+    }
+
+    private fun formatSavedTime(ms: Long): String {
+        val totalMins = ms / 60_000L
+        val hours = totalMins / 60
+        val mins = totalMins % 60
+        return if (hours > 0) {
+            "${hours}h ${mins}m"
+        } else {
+            "${mins}m"
+        }
     }
 
     private fun refreshFromServer() {

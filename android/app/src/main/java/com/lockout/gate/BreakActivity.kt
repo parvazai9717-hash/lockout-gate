@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.view.View
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -48,6 +49,13 @@ class BreakActivity : AppCompatActivity() {
         setContentView(R.layout.activity_break)
 
         store = SessionStore(this)
+
+        val bgImageView = findViewById<ImageView>(R.id.customBackgroundImageView)
+        val scrimView = findViewById<View>(R.id.backgroundScrimView)
+        if (bgImageView != null) {
+            BackgroundHelper.applyCustomBackground(this, bgImageView, scrimView)
+        }
+
         findViewById<Button>(R.id.pickPhotoButton).setOnClickListener {
             pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         }

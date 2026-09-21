@@ -1,11 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.LockoutGate" parent="Theme.MaterialComponents.DayNight.NoActionBar" />
+    <style name="Theme.LockoutGate" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Primary colors -->
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">@color/primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/on_primary_container</item>
 
-    <!-- Full-screen, no-transition theme for the lock screen so it snaps
-         over the blocked app instantly instead of animating in. -->
-    <style name="Theme.LockoutGate.Block" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Background & Surface -->
+        <item name="android:colorBackground">@color/background_light</item>
+        <item name="colorSurface">@color/surface_card_light</item>
+
+        <!-- Status Bar -->
+        <item name="android:statusBarColor">@color/background_light</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <!-- Full-screen, high-friction theme for the block screen -->
+    <style name="Theme.LockoutGate.Block" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:windowAnimationStyle">@null</item>
         <item name="android:windowIsTranslucent">false</item>
+        <item name="android:statusBarColor">@color/background_dark</item>
+        <item name="android:navigationBarColor">@color/background_dark</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

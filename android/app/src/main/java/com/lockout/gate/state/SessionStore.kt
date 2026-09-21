@@ -3,6 +3,7 @@ package com.lockout.gate.state
 import android.content.Context
 import android.content.SharedPreferences
 import com.lockout.gate.network.LockState
+import java.util.Calendar
 
 /**
  * Local cache of the server's /v1/lock/state, so the accessibility service
@@ -55,7 +56,60 @@ class SessionStore(context: Context) {
         get() = prefs.getLong(KEY_USAGE_CHECKPOINT, 0L)
         set(value) = prefs.edit().putLong(KEY_USAGE_CHECKPOINT, value).apply()
 
+    var warned5Min: Boolean
+        get() = prefs.getBoolean(KEY_WARNED_5MIN, false)
+        set(value) = prefs.edit().putBoolean(KEY_WARNED_5MIN, value).apply()
+
+    var warned1Min: Boolean
+        get() = prefs.getBoolean(KEY_WARNED_1MIN, false)
+        set(value) = prefs.edit().putBoolean(KEY_WARNED_1MIN, value).apply()
+
+    var cumulativeBreakUsageMs: Long
+        get() = prefs.getLong(KEY_CUMULATIVE_BREAK_USAGE, 0L)
+        set(value) = prefs.edit().putLong(KEY_CUMULATIVE_BREAK_USAGE, value).apply()
+
+    var timeSavedMsToday: Long
+        get() {
+            checkDailyAnalyticsReset()
+            return prefs.getLong(KEY_TIME_SAVED, 0L)
+        }
+        set(value) = prefs.edit().putLong(KEY_TIME_SAVED, value).apply()
+
+    var streakDays: Int
+        get() {
+            checkDailyAnalyticsReset()
+            return prefs.getInt(KEY_STREAK_DAYS, 1)
+        }
+        set(value) = prefs.edit().putInt(KEY_STREAK_DAYS, value).apply()
+
+    private var lastAnalyticsDayOfYear: Int
+        get() = prefs.getInt(KEY_LAST_ANALYTICS_DAY, 0)
+        set(value) = prefs.edit().putInt(KEY_LAST_ANALYTICS_DAY, value).apply()
+
+    var customBackgroundPath: String?
+        get() = prefs.getString(KEY_CUSTOM_BACKGROUND, null)
+        set(value) = prefs.edit().putString(KEY_CUSTOM_BACKGROUND, value).apply()
+
+    fun checkDailyAnalyticsReset() {
+        val currentDay = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
+        val lastDay = lastAnalyticsDayOfYear
+        if (lastDay != currentDay) {
+            if (lastDay != 0) {
+                streakDays += 1
+            } else {
+                streakDays = 1
+            }
+            prefs.edit().putLong(KEY_TIME_SAVED, 0L).putInt(KEY_LAST_ANALYTICS_DAY, currentDay).apply()
+        }
+    }
+
+    fun addSavedTime(ms: Long) {
+        checkDailyAnalyticsReset()
+        timeSavedMsToday = prefs.getLong(KEY_TIME_SAVED, 0L) + ms
+    }
+
     fun update(state: LockState) {
+        checkDailyAnalyticsReset()
         val wasActiveBreak = activeBreak
         prefs.edit()
             .putBoolean(KEY_ENABLED, state.enabled)
@@ -67,8 +121,15 @@ class SessionStore(context: Context) {
             .putBoolean(KEY_ACTIVE_BREAK, state.active_break)
             .putBoolean(KEY_EMERGENCY_AVAILABLE, state.emergency_available)
             .apply()
-        if (state.active_break && !wasActiveBreak) {
+        if (state.active_break && (!wasActiveBreak || usageCheckpointMs <= 0L)) {
             usageCheckpointMs = System.currentTimeMillis()
+            cumulativeBreakUsageMs = 0L
+            warned5Min = false
+            warned1Min = false
+        } else if (!state.active_break) {
+            cumulativeBreakUsageMs = 0L
+            warned5Min = false
+            warned1Min = false
         }
     }
 
@@ -85,5 +146,12 @@ class SessionStore(context: Context) {
         private const val KEY_ACTIVE_BREAK = "active_break"
         private const val KEY_EMERGENCY_AVAILABLE = "emergency_available"
         private const val KEY_USAGE_CHECKPOINT = "usage_checkpoint_ms"
+        private const val KEY_WARNED_5MIN = "warned_5min"
+        private const val KEY_WARNED_1MIN = "warned_1min"
+        private const val KEY_CUMULATIVE_BREAK_USAGE = "cumulative_break_usage_ms"
+        private const val KEY_TIME_SAVED = "time_saved_today_ms"
+        private const val KEY_STREAK_DAYS = "streak_days"
+        private const val KEY_LAST_ANALYTICS_DAY = "last_analytics_day"
+        private const val KEY_CUSTOM_BACKGROUND = "custom_background_path"
     }
 }

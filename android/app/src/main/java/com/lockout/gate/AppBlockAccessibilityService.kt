@@ -1,11 +1,17 @@
 package com.lockout.gate
 
 import android.accessibilityservice.AccessibilityService
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.widget.Toast
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.lockout.gate.network.ApiClient
 import com.lockout.gate.network.BreakReportRequest
 import com.lockout.gate.state.SessionStore
@@ -50,6 +56,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         store = SessionStore(this)
+        createNotificationChannel()
         handler.post(refreshRunnable)
     }
 
@@ -71,6 +78,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
     }
 
     private fun blockNow() {
+        store.addSavedTime(5 * 60_000L)
         val intent = Intent(this, BlockActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
@@ -124,8 +132,73 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         super.onDestroy()
+        cancelBreakNotification()
         handler.removeCallbacks(refreshRunnable)
         job.cancel()
+    }
+
+    private fun createNotificationChannel() {
+        val channel = NotificationChannel(
+            NOTIFICATION_CHANNEL_ID,
+            getString(R.string.notification_channel_name),
+            NotificationManager.IMPORTANCE_LOW,
+        ).apply {
+            description = "Shows live status and remaining budget during an active break"
+            setShowBadge(false)
+        }
+        val manager = getSystemService(NotificationManager::class.java)
+        manager?.createNotificationChannel(channel)
+    }
+
+    private fun updateBreakNotification(remainingMs: Long) {
+        val totalSec = (remainingMs / 1000L).coerceAtLeast(0L)
+        val mins = totalSec / 60
+        val secs = totalSec % 60
+        val contentText = getString(R.string.notification_break_content, mins, secs)
+
+        val intent = Intent(this, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+        val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle(getString(R.string.notification_break_title))
+            .setContentText(contentText)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setContentIntent(pendingIntent)
+            .build()
+
+        val notificationManager = NotificationManagerCompat.from(this)
+        try {
+            notificationManager.notify(BREAK_NOTIFICATION_ID, notification)
+        } catch (e: SecurityException) {
+            // Permission not granted on Android 13+
+        }
+    }
+
+    private fun cancelBreakNotification() {
+        val notificationManager = NotificationManagerCompat.from(this)
+        notificationManager.cancel(BREAK_NOTIFICATION_ID)
+    }
+
+    private fun checkPreBlockWarnings(remainingMs: Long) {
+        val remainingMins = remainingMs / 60_000L
+        if (remainingMins <= 5 && !store.warned5Min && remainingMs > 60_000L) {
+            store.warned5Min = true
+            handler.post {
+                Toast.makeText(applicationContext, R.string.warning_5_minutes, Toast.LENGTH_LONG).show()
+            }
+        }
+        if (remainingMins <= 1 && !store.warned1Min && remainingMs > 0L) {
+            store.warned1Min = true
+            handler.post {
+                Toast.makeText(applicationContext, R.string.warning_1_minute, Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     /**
@@ -138,12 +211,20 @@ class AppBlockAccessibilityService : AccessibilityService() {
     private fun refreshAndReport() {
         scope.launch {
             try {
-                if (store.activeBreak && UsageTracker.hasUsageAccess(applicationContext)) {
+                if (store.activeBreak) {
                     val now = System.currentTimeMillis()
                     val checkpoint = store.usageCheckpointMs
-                    val delta = UsageTracker.foregroundMsBetween(
-                        applicationContext, Config.ENTERTAINMENT_PACKAGES, checkpoint, now,
-                    )
+                    if (checkpoint <= 0L || checkpoint > now) {
+                        store.usageCheckpointMs = now
+                        return@launch
+                    }
+                    val delta = if (UsageTracker.hasUsageAccess(applicationContext)) {
+                        UsageTracker.foregroundMsBetween(
+                            applicationContext, Config.ENTERTAINMENT_PACKAGES, checkpoint, now,
+                        )
+                    } else {
+                        now - checkpoint
+                    }
                     val resp = ApiClient.api.reportBreakUsage(
                         Config.DEVICE_KEY,
                         BreakReportRequest(Config.DEVICE_ID, delta),
@@ -151,9 +232,18 @@ class AppBlockAccessibilityService : AccessibilityService() {
                     val body = resp.body()
                     if (resp.isSuccessful && body != null) {
                         store.usageCheckpointMs = now
+                        store.cumulativeBreakUsageMs += delta
                         store.update(body)
                     }
+
+                    val remainingMs = (Config.BREAK_MS - store.cumulativeBreakUsageMs).coerceAtLeast(0L)
+                    updateBreakNotification(remainingMs)
+                    checkPreBlockWarnings(remainingMs)
                 } else {
+                    cancelBreakNotification()
+                    if (store.isLocked()) {
+                        store.addSavedTime(Config.STATE_REFRESH_INTERVAL_MS)
+                    }
                     val resp = ApiClient.api.lockState(Config.DEVICE_KEY, Config.DEVICE_ID)
                     val body = resp.body()
                     if (resp.isSuccessful && body != null) {
@@ -161,7 +251,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
                     }
                 }
 
-                val fg = lastForegroundPackage
+                val fg = lastForegroundPackage ?: rootInActiveWindow?.packageName?.toString()
                 if (fg != null && fg in Config.ENTERTAINMENT_PACKAGES && store.isLocked()) {
                     handler.post { blockNow() }
                 }
@@ -169,5 +259,10 @@ class AppBlockAccessibilityService : AccessibilityService() {
                 // Offline — keep enforcing whatever the last known state was.
             }
         }
+    }
+
+    companion object {
+        private const val NOTIFICATION_CHANNEL_ID = "lockout_break_channel"
+        private const val BREAK_NOTIFICATION_ID = 1001
     }
 }

@@ -36,7 +36,11 @@ object UsageTracker {
     fun foregroundMsBetween(ctx: Context, packages: Set<String>, startMs: Long, endMs: Long): Long {
         if (startMs >= endMs) return 0L
         val usm = ctx.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-        val events = usm.queryEvents(startMs, endMs)
+
+        // Look back 24 hours (86,400,000 ms) prior to startMs so we capture
+        // MOVE_TO_FOREGROUND events for apps that were opened before startMs.
+        val lookbackStartMs = (startMs - 86_400_000L).coerceAtLeast(0L)
+        val events = usm.queryEvents(lookbackStartMs, endMs)
         val event = UsageEvents.Event()
         val foregroundSince = HashMap<String, Long>()
         var totalMs = 0L
@@ -47,17 +51,26 @@ object UsageTracker {
             if (pkg !in packages) continue
 
             when (event.eventType) {
-                UsageEvents.Event.MOVE_TO_FOREGROUND, UsageEvents.Event.ACTIVITY_RESUMED -> {
-                    foregroundSince[pkg] = event.timeStamp
+                UsageEvents.Event.MOVE_TO_FOREGROUND,
+                UsageEvents.Event.ACTIVITY_RESUMED -> {
+                    if (pkg !in foregroundSince) {
+                        foregroundSince[pkg] = event.timeStamp
+                    }
                 }
-                UsageEvents.Event.MOVE_TO_BACKGROUND, UsageEvents.Event.ACTIVITY_PAUSED -> {
+                UsageEvents.Event.MOVE_TO_BACKGROUND,
+                UsageEvents.Event.ACTIVITY_PAUSED,
+                23 -> { // 23 = ACTIVITY_STOPPED
                     val since = foregroundSince.remove(pkg)
-                    if (since != null) totalMs += (event.timeStamp - since).coerceAtLeast(0)
+                    if (since != null) {
+                        val overlap = (minOf(event.timeStamp, endMs) - maxOf(since, startMs)).coerceAtLeast(0L)
+                        totalMs += overlap
+                    }
                 }
             }
         }
         for (since in foregroundSince.values) {
-            totalMs += (endMs - since).coerceAtLeast(0)
+            val overlap = (endMs - maxOf(since, startMs)).coerceAtLeast(0L)
+            totalMs += overlap
         }
         return totalMs
     }
