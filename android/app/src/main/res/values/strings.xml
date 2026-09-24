@@ -20,7 +20,7 @@
     <string name="enable_usage_access">Enable usage access</string>
 
     <string name="hard_lock_title">Start hard lock</string>
-    <string name="hard_lock_message">Chrome, Instagram, YouTube, and Facebook will be hard-blocked. How many days?</string>
+    <string name="hard_lock_message">Your selected apps will be hard-blocked. How many days?</string>
     <string name="hard_lock_days_hint">Number of days</string>
     <string name="hard_lock_confirm">Start</string>
     <string name="hard_lock_invalid_days">Enter a valid number of days</string>
