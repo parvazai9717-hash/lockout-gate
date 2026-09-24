@@ -68,10 +68,10 @@ class AppPickerActivity : AppCompatActivity() {
 
     private fun updateModeDescription() {
         if (isStrictMode) {
-            modeDescriptionText.text = "PERMANENT LOCK MODE: Selected apps CANNOT be unselected or removed once added!"
+            modeDescriptionText.text = getString(R.string.mode_desc_strict)
             modeDescriptionText.setTextColor(getColor(R.color.status_locked))
         } else {
-            modeDescriptionText.text = "STANDARD MODE: Select or deselect apps anytime."
+            modeDescriptionText.text = getString(R.string.mode_desc_standard)
             modeDescriptionText.setTextColor(getColor(R.color.text_secondary_light))
         }
     }

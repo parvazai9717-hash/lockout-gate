@@ -81,4 +81,8 @@
     <string name="strict_confirm_yes">Yes, Lock Permanently</string>
     <string name="badge_permanent_lock">PERMANENT LOCK</string>
     <string name="label_break_duration">Break Duration</string>
+    <string name="break_result_offline_started">Break started (Offline Mode) — %1$d real minutes on watched apps.</string>
+    <string name="photo_selected_format">Selected: %1$s (%2$d KB)</string>
+    <string name="mode_desc_standard">STANDARD MODE: Select or deselect apps anytime.</string>
+    <string name="mode_desc_strict">PERMANENT LOCK MODE: Selected apps CANNOT be unselected or removed once added!</string>
 </resources>

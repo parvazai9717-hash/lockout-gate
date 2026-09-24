@@ -128,8 +128,26 @@ class SessionStore(context: Context) {
             } else {
                 streakDays = 1
             }
+            breaksUsedToday = 0
+            breaksRemainingToday = Config.DEFAULT_DAILY_BREAKS
             prefs.edit().putLong(KEY_TIME_SAVED, 0L).putInt(KEY_LAST_ANALYTICS_DAY, currentDay).apply()
         }
+    }
+
+    fun startBreakLocally(): Boolean {
+        checkDailyAnalyticsReset()
+        if (breaksRemainingToday <= 0 && breaksUsedToday >= Config.DEFAULT_DAILY_BREAKS) {
+            return false
+        }
+        breaksUsedToday += 1
+        breaksRemainingToday = (Config.DEFAULT_DAILY_BREAKS - breaksUsedToday).coerceAtLeast(0)
+        activeBreak = true
+        locked = false
+        usageCheckpointMs = System.currentTimeMillis()
+        cumulativeBreakUsageMs = 0L
+        warned5Min = false
+        warned1Min = false
+        return true
     }
 
     fun addSavedTime(ms: Long) {

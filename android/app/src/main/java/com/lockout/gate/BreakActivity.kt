@@ -114,7 +114,9 @@ class BreakActivity : AppCompatActivity() {
             tmp.outputStream().use { output -> input.copyTo(output) }
         }
         pickedFile = tmp
-        findViewById<TextView>(R.id.pickedPhotoText).text = "Selected: ${tmp.name} (${tmp.length() / 1024} KB)"
+        findViewById<TextView>(R.id.pickedPhotoText).text = getString(
+            R.string.photo_selected_format, tmp.name, tmp.length() / 1024,
+        )
     }
 
     private fun submit() {
@@ -143,11 +145,23 @@ class BreakActivity : AppCompatActivity() {
                 } else if (resp.code() == 429) {
                     resultText.text = getString(R.string.break_result_limit_reached)
                 } else {
-                    resultText.text = "Server error (${resp.code()})"
+                    // Local offline fallback
+                    val success = store.startBreakLocally()
+                    resultText.text = if (success) {
+                        getString(R.string.break_result_offline_started, store.selectedBreakMinutes)
+                    } else {
+                        getString(R.string.break_result_limit_reached)
+                    }
                 }
             } catch (e: Exception) {
                 progressBar.visibility = View.GONE
-                resultText.text = "Could not reach server: ${e.message}"
+                // Local offline fallback
+                val success = store.startBreakLocally()
+                resultText.text = if (success) {
+                    getString(R.string.break_result_offline_started, store.selectedBreakMinutes)
+                } else {
+                    getString(R.string.break_result_limit_reached)
+                }
             }
         }
     }
@@ -189,11 +203,21 @@ class BreakActivity : AppCompatActivity() {
                         getString(R.string.break_result_rejected, body.reasoning)
                     }
                 } else {
-                    resultText.text = "Server error (${response.code()})"
+                    val success = store.startBreakLocally()
+                    resultText.text = if (success) {
+                        getString(R.string.break_result_offline_started, store.selectedBreakMinutes)
+                    } else {
+                        getString(R.string.break_result_limit_reached)
+                    }
                 }
             } catch (e: Exception) {
                 progressBar.visibility = View.GONE
-                resultText.text = "Could not reach server: ${e.message}"
+                val success = store.startBreakLocally()
+                resultText.text = if (success) {
+                    getString(R.string.break_result_offline_started, store.selectedBreakMinutes)
+                } else {
+                    getString(R.string.break_result_limit_reached)
+                }
             }
         }
     }

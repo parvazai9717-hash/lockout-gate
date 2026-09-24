@@ -44,6 +44,9 @@ object Config {
     const val BREAK_MINUTES: Int = 30
     const val BREAK_MS: Long = BREAK_MINUTES * 60_000L
 
+    /** Default daily break limit for local offline enforcement */
+    const val DEFAULT_DAILY_BREAKS: Int = 2
+
     /**
      * Watched so the accessibility service can bounce the user to the home
      * screen the instant it sees a screen for disabling this service or
