@@ -237,10 +237,14 @@ class MainActivity : AppCompatActivity() {
                     store.update(body)
                     renderStatus()
                 } else {
-                    Toast.makeText(this@MainActivity, "Server error (${resp.code()})", Toast.LENGTH_SHORT).show()
+                    store.enabled = !store.enabled
+                    renderStatus()
+                    Toast.makeText(this@MainActivity, "Emergency toggled locally (Server code ${resp.code()})", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                Toast.makeText(this@MainActivity, "Could not reach server: ${e.message}", Toast.LENGTH_SHORT).show()
+                store.enabled = !store.enabled
+                renderStatus()
+                Toast.makeText(this@MainActivity, "Emergency toggled locally (Offline)", Toast.LENGTH_SHORT).show()
             }
         }
     }

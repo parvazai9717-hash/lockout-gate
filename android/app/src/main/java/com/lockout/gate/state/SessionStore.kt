@@ -163,7 +163,7 @@ class SessionStore(context: Context) {
     }
 
     /** True when an entertainment app should currently be blocked. */
-    fun isLocked(): Boolean = locked
+    fun isLocked(): Boolean = enabled && locked
 
     companion object {
         private const val KEY_ENABLED = "enabled"
