@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
@@ -90,19 +91,23 @@ class AppBlockAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        val pkg = event.packageName?.toString() ?: return
-        if (pkg == packageName) return // never block ourselves
+        try {
+            val pkg = event.packageName?.toString() ?: return
+            if (pkg == packageName) return // never block ourselves
 
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            lastForegroundPackage = pkg
-            if (pkg in store.getAllBlockedPackages() && store.isLocked()) {
-                blockNow()
-                return
+            if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                lastForegroundPackage = pkg
+                if (pkg in store.getAllBlockedPackages() && store.isLocked()) {
+                    blockNow()
+                    return
+                }
             }
-        }
 
-        if (pkg in Config.SELF_PROTECT_PACKAGES) {
-            checkSelfProtection(pkg)
+            if (pkg in Config.SELF_PROTECT_PACKAGES) {
+                checkSelfProtection(pkg)
+            }
+        } catch (e: Exception) {
+            Log.e("AppBlockService", "Error in onAccessibilityEvent", e)
         }
     }
 
@@ -120,39 +125,55 @@ class AppBlockAccessibilityService : AccessibilityService() {
      * service, bounce home before the action can complete.
      */
     private fun checkSelfProtection(pkg: String) {
-        val root = rootInActiveWindow ?: return
-        val appLabel = getString(R.string.app_name)
-        val hasOwnLabel = nodeTreeContainsText(root, appLabel)
+        try {
+            val root = rootInActiveWindow ?: return
+            val appLabel = getString(R.string.app_name)
+            val hasOwnLabel = nodeTreeContainsText(root, appLabel, 0)
 
-        val shouldBounce = when (pkg) {
-            "com.google.android.packageinstaller", "com.android.packageinstaller" ->
-                hasOwnLabel
-            "com.android.settings" ->
-                hasOwnLabel && nodeTreeHasSwitch(root)
-            else -> false
-        }
+            val shouldBounce = when (pkg) {
+                "com.google.android.packageinstaller", "com.android.packageinstaller" ->
+                    hasOwnLabel
+                "com.android.settings" ->
+                    hasOwnLabel && nodeTreeHasSwitch(root, 0)
+                else -> false
+            }
 
-        if (shouldBounce) {
-            performGlobalAction(GLOBAL_ACTION_HOME)
+            if (shouldBounce) {
+                performGlobalAction(GLOBAL_ACTION_HOME)
+            }
+        } catch (e: Exception) {
+            Log.e("AppBlockService", "Error in checkSelfProtection", e)
         }
     }
 
-    private fun nodeTreeContainsText(node: AccessibilityNodeInfo, needle: String): Boolean {
-        val text = node.text?.toString() ?: node.contentDescription?.toString()
-        if (text != null && text.contains(needle, ignoreCase = true)) return true
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
-            if (nodeTreeContainsText(child, needle)) return true
+    private fun nodeTreeContainsText(node: AccessibilityNodeInfo?, needle: String, depth: Int = 0): Boolean {
+        if (node == null || depth > 50) return false
+        try {
+            val text = node.text?.toString() ?: node.contentDescription?.toString()
+            if (text != null && text.contains(needle, ignoreCase = true)) return true
+            val childCount = node.childCount
+            for (i in 0 until childCount) {
+                val child = node.getChild(i) ?: continue
+                if (nodeTreeContainsText(child, needle, depth + 1)) return true
+            }
+        } catch (e: Exception) {
+            // Safe traversal fallback
         }
         return false
     }
 
-    private fun nodeTreeHasSwitch(node: AccessibilityNodeInfo): Boolean {
-        val className = node.className?.toString()
-        if (className != null && className.contains("Switch", ignoreCase = true)) return true
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
-            if (nodeTreeHasSwitch(child)) return true
+    private fun nodeTreeHasSwitch(node: AccessibilityNodeInfo?, depth: Int = 0): Boolean {
+        if (node == null || depth > 50) return false
+        try {
+            val className = node.className?.toString()
+            if (className != null && className.contains("Switch", ignoreCase = true)) return true
+            val childCount = node.childCount
+            for (i in 0 until childCount) {
+                val child = node.getChild(i) ?: continue
+                if (nodeTreeHasSwitch(child, depth + 1)) return true
+            }
+        } catch (e: Exception) {
+            // Safe traversal fallback
         }
         return false
     }
