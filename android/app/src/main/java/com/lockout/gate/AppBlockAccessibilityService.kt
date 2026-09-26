@@ -108,7 +108,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
             }
 
             if (store.selfProtectionActive()) {
-                checkSelfProtection(pkg)
+                checkSelfProtection(pkg, event)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error in onAccessibilityEvent", e)
@@ -128,7 +128,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
      * Lockout Gate directly from the phone. All other apps, settings, and permissions
      * remain fully accessible.
      */
-    private fun checkSelfProtection(pkg: String) {
+    private fun checkSelfProtection(pkg: String, event: AccessibilityEvent) {
         if (store.isFirstRun || !store.selfProtectionActive()) return
         val root = rootInActiveWindow ?: return
 
@@ -136,36 +136,50 @@ class AppBlockAccessibilityService : AccessibilityService() {
         if (nodeTreeContainsText(root, "Allow Lockout Gate", 0)) return
 
         val appLabel = getString(R.string.app_name)
-        val hasOwnLabel = nodeTreeContainsText(root, appLabel, 0)
-        if (!hasOwnLabel) return
 
         // 1. Uninstall attempt (Package installer, Play Store, Launcher, or Settings App Info)
-        val isUninstallAttempt = nodeTreeContainsText(root, "Uninstall", 0) ||
+        val isUninstallPage = nodeTreeContainsText(root, "Uninstall", 0) ||
             nodeTreeContainsText(root, "Do you want to uninstall", 0) ||
             nodeTreeContainsText(root, "Delete app", 0)
 
-        // 2. Accessibility or Usage Access disable attempt on Lockout Gate's specific detail screen
-        val isSettingsPage = pkg == "com.android.settings"
-        val isAppDetailScreen = !isAppList(root)
-
-        // If the switch on screen is OFF, the user is turning the service ON, so allow it
-        val isSwitchOff = nodeTreeContainsText(root, "Off", 0) && !nodeTreeContainsText(root, "On", 0)
-
-        val isAccessibilityDisable = isSettingsPage && isAppDetailScreen && !isSwitchOff &&
-            (nodeTreeContainsText(root, "Stop Lockout Gate", 0) ||
-             nodeTreeContainsText(root, "Turn off", 0) ||
-             nodeTreeContainsText(root, "Disable", 0) ||
-             nodeTreeContainsText(root, "Accessibility", 0))
-
-        val isUsageAccessDisable = isSettingsPage && isAppDetailScreen && !isSwitchOff &&
-            (nodeTreeContainsText(root, "Usage access", 0) ||
-             nodeTreeContainsText(root, "Permit usage tracking", 0) ||
-             nodeTreeContainsText(root, "Usage statistics", 0))
-
-        val shouldBounce = isUninstallAttempt || isAccessibilityDisable || isUsageAccessDisable
-
-        if (shouldBounce) {
+        if (isUninstallPage && nodeTreeContainsText(root, appLabel, 0)) {
             performGlobalAction(GLOBAL_ACTION_HOME)
+            return
+        }
+
+        // 2. Settings self-protection (Accessibility & Usage Access)
+        if (pkg == "com.android.settings") {
+            val isUsageAccessPage = nodeTreeContainsText(root, "Usage access", 0) ||
+                nodeTreeContainsText(root, "Usage data access", 0) ||
+                nodeTreeContainsText(root, "Permit usage tracking", 0) ||
+                nodeTreeContainsText(root, "Usage statistics", 0)
+
+            val isAccessibilityPage = nodeTreeContainsText(root, "Accessibility", 0) ||
+                nodeTreeContainsText(root, "Installed apps", 0) ||
+                nodeTreeContainsText(root, "Installed services", 0)
+
+            if (!isUsageAccessPage && !isAccessibilityPage) return
+
+            // Check if on a single app detail page for Lockout Gate vs a list of apps
+            val isDetailScreen = !isAppList(root)
+
+            if (isDetailScreen && nodeTreeContainsText(root, appLabel, 0)) {
+                val isSwitchOff = nodeTreeContainsText(root, "Off", 0) && !nodeTreeContainsText(root, "On", 0)
+                if (!isSwitchOff) {
+                    performGlobalAction(GLOBAL_ACTION_HOME)
+                    return
+                }
+            }
+
+            // On list screens (such as Usage data access or Installed apps list):
+            // Check if the clicked row/switch or event source belongs specifically to Lockout Gate
+            val eventSource = event.source
+            val clickedLockoutRow = eventSource != null && nodeTreeContainsText(eventSource, appLabel, 0)
+
+            if (clickedLockoutRow) {
+                performGlobalAction(GLOBAL_ACTION_HOME)
+                return
+            }
         }
     }
 
