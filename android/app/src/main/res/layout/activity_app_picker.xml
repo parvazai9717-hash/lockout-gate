@@ -27,6 +27,14 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/bg_panel"
+            android:orientation="vertical"
+            android:padding="16dp">
+
         <!-- Header -->
         <LinearLayout
             android:layout_width="match_parent"
@@ -68,6 +76,9 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/tab_standard"
+                app:backgroundTint="@color/tab_button_bg"
+                android:textColor="@color/tab_button_content"
+                app:iconTint="@color/tab_button_content"
                 android:textSize="13sp" />
 
             <com.google.android.material.button.MaterialButton
@@ -77,6 +88,9 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/tab_strict_permanent"
+                app:backgroundTint="@color/tab_button_bg"
+                android:textColor="@color/tab_button_content"
+                app:iconTint="@color/tab_button_content"
                 android:textSize="13sp" />
         </com.google.android.material.button.MaterialButtonToggleGroup>
 
@@ -88,6 +102,7 @@
             android:layout_marginBottom="12dp"
             android:textColor="@color/text_secondary_light"
             android:textSize="13sp" />
+        </LinearLayout>
 
         <ProgressBar
             android:id="@+id/appsProgressBar"

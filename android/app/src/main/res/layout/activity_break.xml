@@ -37,8 +37,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
+                android:layout_marginBottom="16dp"
+                android:background="@drawable/bg_panel"
                 android:orientation="horizontal"
-                android:paddingBottom="20dp">
+                android:padding="16dp">
 
                 <ImageView
                     android:layout_width="32dp"
@@ -159,6 +161,14 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:background="@drawable/bg_panel"
+                android:orientation="vertical"
+                android:padding="16dp">
+
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/submitBreakButton"
                 style="@style/Widget.Material3.Button"
@@ -186,6 +196,7 @@
                 android:textColor="@color/text_primary_light"
                 android:textSize="15sp"
                 android:textStyle="bold" />
+            </LinearLayout>
 
         </LinearLayout>
     </ScrollView>
