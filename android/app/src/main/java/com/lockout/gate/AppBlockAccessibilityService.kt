@@ -129,6 +129,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
      * remain fully accessible.
      */
     private fun checkSelfProtection(pkg: String, event: AccessibilityEvent) {
+        if (pkg == packageName) return // Never block Lockout Gate itself!
         if (store.isFirstRun || !store.selfProtectionActive()) return
         val root = rootInActiveWindow ?: return
 
@@ -140,9 +141,17 @@ class AppBlockAccessibilityService : AccessibilityService() {
         if (!hasOwnLabel) return
 
         // 1. Uninstall attempt (Package installer, Play Store, Launcher, or Settings App Info)
-        val isUninstallAttempt = nodeTreeContainsText(root, "Uninstall", 0) ||
-            nodeTreeContainsText(root, "Do you want to uninstall", 0) ||
-            nodeTreeContainsText(root, "Delete app", 0)
+        val isUninstallPackage = pkg == "com.google.android.packageinstaller" ||
+            pkg == "com.android.packageinstaller" ||
+            pkg == "com.google.android.vending" ||
+            pkg == "com.android.settings" ||
+            pkg.contains("launcher") ||
+            pkg.contains("home")
+
+        val isUninstallAttempt = isUninstallPackage &&
+            (nodeTreeContainsText(root, "Uninstall", 0) ||
+             nodeTreeContainsText(root, "Do you want to uninstall", 0) ||
+             nodeTreeContainsText(root, "Delete app", 0))
 
         // 2. Settings self-protection
         val isSettingsPage = pkg == "com.android.settings"
