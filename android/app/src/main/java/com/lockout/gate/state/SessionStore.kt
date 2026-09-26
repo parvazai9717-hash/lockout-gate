@@ -71,17 +71,11 @@ class SessionStore(context: Context) {
         set(value) = prefs.edit().putLong(KEY_CUMULATIVE_BREAK_USAGE, value).apply()
 
     var timeSavedMsToday: Long
-        get() {
-            checkDailyAnalyticsReset()
-            return prefs.getLong(KEY_TIME_SAVED, 0L)
-        }
+        get() = prefs.getLong(KEY_TIME_SAVED, 0L)
         set(value) = prefs.edit().putLong(KEY_TIME_SAVED, value).apply()
 
     var streakDays: Int
-        get() {
-            checkDailyAnalyticsReset()
-            return prefs.getInt(KEY_STREAK_DAYS, 1)
-        }
+        get() = prefs.getInt(KEY_STREAK_DAYS, 1)
         set(value) = prefs.edit().putInt(KEY_STREAK_DAYS, value).apply()
 
     private var lastAnalyticsDayOfYear: Int
@@ -93,12 +87,12 @@ class SessionStore(context: Context) {
         set(value) = prefs.edit().putString(KEY_CUSTOM_BACKGROUND, value).apply()
 
     var standardBlockedPackages: Set<String>
-        get() = prefs.getStringSet(KEY_STANDARD_BLOCKED_PACKAGES, emptySet()) ?: emptySet()
-        set(value) = prefs.edit().putStringSet(KEY_STANDARD_BLOCKED_PACKAGES, value).apply()
+        get() = prefs.getStringSet(KEY_STANDARD_BLOCKED_PACKAGES, emptySet())?.toSet() ?: emptySet()
+        set(value) = prefs.edit().putStringSet(KEY_STANDARD_BLOCKED_PACKAGES, HashSet(value)).apply()
 
     var strictBlockedPackages: Set<String>
-        get() = prefs.getStringSet(KEY_STRICT_BLOCKED_PACKAGES, emptySet()) ?: emptySet()
-        set(value) = prefs.edit().putStringSet(KEY_STRICT_BLOCKED_PACKAGES, value).apply()
+        get() = prefs.getStringSet(KEY_STRICT_BLOCKED_PACKAGES, emptySet())?.toSet() ?: emptySet()
+        set(value) = prefs.edit().putStringSet(KEY_STRICT_BLOCKED_PACKAGES, HashSet(value)).apply()
 
     var selectedBreakMinutes: Int
         get() = prefs.getInt(KEY_SELECTED_BREAK_MINUTES, 30)
@@ -123,14 +117,15 @@ class SessionStore(context: Context) {
         val currentDay = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
         val lastDay = lastAnalyticsDayOfYear
         if (lastDay != currentDay) {
-            if (lastDay != 0) {
-                streakDays += 1
-            } else {
-                streakDays = 1
-            }
-            breaksUsedToday = 0
-            breaksRemainingToday = Config.DEFAULT_DAILY_BREAKS
-            prefs.edit().putLong(KEY_TIME_SAVED, 0L).putInt(KEY_LAST_ANALYTICS_DAY, currentDay).apply()
+            val currentStreak = prefs.getInt(KEY_STREAK_DAYS, 1)
+            val newStreak = if (lastDay != 0) currentStreak + 1 else 1
+            prefs.edit()
+                .putInt(KEY_STREAK_DAYS, newStreak)
+                .putLong(KEY_TIME_SAVED, 0L)
+                .putInt(KEY_BREAKS_USED, 0)
+                .putInt(KEY_BREAKS_REMAINING, Config.DEFAULT_DAILY_BREAKS)
+                .putInt(KEY_LAST_ANALYTICS_DAY, currentDay)
+                .apply()
         }
     }
 
