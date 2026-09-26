@@ -157,7 +157,7 @@ class AppPickerActivity : AppCompatActivity() {
                     promptStrictConfirmation(app) {
                         store.strictBlockedPackages = store.strictBlockedPackages + pkg
                         store.standardBlockedPackages = store.standardBlockedPackages - pkg
-                        val pos = holder.bindingAdapterPosition
+                        val pos = holder.adapterPosition
                         if (pos != RecyclerView.NO_POSITION) notifyItemChanged(pos)
                     }
                 }
