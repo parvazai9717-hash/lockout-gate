@@ -132,6 +132,9 @@ class AppBlockAccessibilityService : AccessibilityService() {
         if (store.isFirstRun || !store.selfProtectionActive()) return
         val root = rootInActiveWindow ?: return
 
+        // Never bounce when the initial permission grant dialog is showing
+        if (nodeTreeContainsText(root, "Allow Lockout Gate", 0)) return
+
         val appLabel = getString(R.string.app_name)
         val hasOwnLabel = nodeTreeContainsText(root, appLabel, 0)
         if (!hasOwnLabel) return
@@ -145,13 +148,16 @@ class AppBlockAccessibilityService : AccessibilityService() {
         val isSettingsPage = pkg == "com.android.settings"
         val isAppDetailScreen = !isAppList(root)
 
-        val isAccessibilityDisable = isSettingsPage && isAppDetailScreen &&
+        // If the switch on screen is OFF, the user is turning the service ON, so allow it
+        val isSwitchOff = nodeTreeContainsText(root, "Off", 0) && !nodeTreeContainsText(root, "On", 0)
+
+        val isAccessibilityDisable = isSettingsPage && isAppDetailScreen && !isSwitchOff &&
             (nodeTreeContainsText(root, "Stop Lockout Gate", 0) ||
              nodeTreeContainsText(root, "Turn off", 0) ||
              nodeTreeContainsText(root, "Disable", 0) ||
              nodeTreeContainsText(root, "Accessibility", 0))
 
-        val isUsageAccessDisable = isSettingsPage && isAppDetailScreen &&
+        val isUsageAccessDisable = isSettingsPage && isAppDetailScreen && !isSwitchOff &&
             (nodeTreeContainsText(root, "Usage access", 0) ||
              nodeTreeContainsText(root, "Permit usage tracking", 0) ||
              nodeTreeContainsText(root, "Usage statistics", 0))
