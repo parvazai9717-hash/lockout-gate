@@ -56,9 +56,15 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
 
         store = SessionStore(this)
+        if (store.isFirstRun) {
+            startActivity(Intent(this, OnboardingActivity::class.java))
+            finish()
+            return
+        }
+
+        setContentView(R.layout.activity_main)
         statusText = findViewById(R.id.statusText)
         lockoutScroll = findViewById(R.id.lockoutScroll)
         habitsScroll = findViewById(R.id.habitsScroll)

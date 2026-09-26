@@ -132,6 +132,10 @@ class SessionStore(context: Context) {
         get() = prefs.getInt(KEY_LAST_TAB, 0)
         set(value) = prefs.edit().putInt(KEY_LAST_TAB, value).apply()
 
+    var isFirstRun: Boolean
+        get() = prefs.getBoolean(KEY_FIRST_RUN, true)
+        set(value) = prefs.edit().putBoolean(KEY_FIRST_RUN, value).apply()
+
     fun getAllBlockedPackages(): Set<String> =
         Config.ENTERTAINMENT_PACKAGES + standardBlockedPackages + strictBlockedPackages
 
@@ -259,5 +263,6 @@ class SessionStore(context: Context) {
         private const val KEY_DEVICE_ID = "device_id"
         private const val KEY_DEVICE_SECRET = "device_secret"
         private const val KEY_LAST_TAB = "last_selected_tab"
+        private const val KEY_FIRST_RUN = "is_first_run"
     }
 }
