@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Lockout Gate</string>
-    <string name="accessibility_service_description">Watches which app is in the foreground so Lockout Gate can block time-wasting apps unless a break is active. Also protects itself: reads on-screen text only within Settings and the Package Installer, to detect and bounce out of attempts to disable this service or uninstall this app from the phone (use a PC with ADB instead).</string>
+    <string name="accessibility_service_description">Lockout Gate uses this service to see which app is in the foreground, so it can block the apps you chose unless a break is active. Only while a hard lock you started is active, it also reads on-screen text in Settings and the app installer to stop Lockout Gate from being turned off or uninstalled until the lock ends. It does not collect, store, or share what is on your screen.</string>
 
     <string name="status_normal">Normal mode.</string>
     <string name="status_hard_lock">Hard lock active — %1$d day(s) remaining.</string>
@@ -20,10 +20,10 @@
     <string name="enable_usage_access">Enable usage access</string>
 
     <string name="hard_lock_title">Start hard lock</string>
-    <string name="hard_lock_message">Your selected apps will be hard-blocked. How many days?</string>
+    <string name="hard_lock_message">Your selected apps will be hard-blocked, with only 1 break a day that needs a photo of you eating. Until the lock ends, Lockout Gate will also stop you from turning off its accessibility service or uninstalling it on this phone. How many days (1 to 90)?</string>
     <string name="hard_lock_days_hint">Number of days</string>
     <string name="hard_lock_confirm">Start</string>
-    <string name="hard_lock_invalid_days">Enter a valid number of days</string>
+    <string name="hard_lock_invalid_days">Enter a number of days from 1 to 90</string>
     <string name="hard_lock_started">Hard lock started for %1$d day(s).</string>
 
     <string name="emergency_confirm_title">Disable blocking?</string>
@@ -85,4 +85,50 @@
     <string name="photo_selected_format">Selected: %1$s (%2$d KB)</string>
     <string name="mode_desc_standard">STANDARD MODE: Select or deselect apps anytime.</string>
     <string name="mode_desc_strict">PERMANENT LOCK MODE: Selected apps CANNOT be unselected or removed once added!</string>
+
+    <string name="notification_channel_description">Shows the remaining time during an active break</string>
+
+    <string name="tab_lockout">Lockout</string>
+    <string name="tab_habits">Habits</string>
+    <string name="permission_granted">Enabled</string>
+
+    <string name="accessibility_disclosure_title">Why Lockout Gate needs Accessibility</string>
+    <string name="accessibility_disclosure_message">Lockout Gate uses the Accessibility service to detect which app is open, so it can block the apps you chose when no break is active.\n\nOnly during a hard lock that you start yourself, it also reads text on the Settings and app-installer screens to stop the service being turned off or the app being uninstalled until the lock ends.\n\nScreen content is checked on your phone only. It is never stored or sent anywhere.</string>
+    <string name="accessibility_disclosure_agree">Agree and continue</string>
+    <string name="accessibility_disclosure_decline">Not now</string>
+
+    <string name="hard_lock_failed">Could not start hard lock (server error %1$d).</string>
+    <string name="hard_lock_needs_internet">Starting a hard lock needs an internet connection.</string>
+
+    <string name="emergency_already_used">Emergency disable was already used this month.</string>
+    <string name="emergency_failed">Emergency switch failed (error %1$d).</string>
+    <string name="emergency_needs_internet">Disabling blocking needs an internet connection.</string>
+    <string name="emergency_enabled_offline">Blocking re-enabled (offline).</string>
+
+    <string name="break_info_already_active">A break is already active.</string>
+    <string name="break_result_hard_lock_needs_photo">A hard lock is active, so this break needs a photo of you eating.</string>
+    <string name="break_result_server_error">Server error (%1$d). Please try again.</string>
+    <string name="break_result_photo_needs_internet">Checking your photo needs an internet connection.</string>
+    <string name="break_result_unexpected">Something went wrong. Please try again.</string>
+    <string name="photo_read_failed">Could not read that photo. Please pick another one.</string>
+
+    <string name="habits_label_today">TODAY\'S CHECKLIST</string>
+    <string name="habits_label_monthly">MONTHLY PROGRESS</string>
+    <string name="habits_today_progress">%1$d of %2$d done · %3$d%%</string>
+    <string name="habits_month_progress">%1$d%% complete (%2$d of %3$d checks)</string>
+    <string name="habits_row_month_pct">%1$d%% this month</string>
+    <string name="habits_add_hint">New habit, e.g. Read 20 pages</string>
+    <string name="habits_add_button">Add</string>
+    <string name="habits_empty">No habits yet. Add one above, then tick it off each day.</string>
+    <string name="habits_name_required">Type a habit name first.</string>
+    <string name="habits_duplicate">You already have that habit.</string>
+    <string name="habits_delete_title">Delete habit</string>
+    <string name="habits_delete_message">Delete \"%1$s\" and all its history?</string>
+    <string name="habits_delete_yes">Delete</string>
+    <string name="habits_prev_month">Previous month</string>
+    <string name="habits_next_month">Next month</string>
+    <string name="habits_prev_symbol">‹</string>
+    <string name="habits_next_symbol">›</string>
+    <string name="habits_grid_hint" formatted="false">Tap a day to tick or untick it. The bottom row is each day\'s %.</string>
+    <string name="habits_grid_daily_pct" formatted="false">Daily %</string>
 </resources>
