@@ -107,7 +107,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
                 }
             }
 
-            if (pkg in Config.SELF_PROTECT_PACKAGES && store.selfProtectionActive()) {
+            if (store.selfProtectionActive()) {
                 checkSelfProtection(pkg)
             }
         } catch (e: Exception) {
@@ -124,40 +124,62 @@ class AppBlockAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * If [pkg]'s current screen is the uninstall-confirmation dialog for this
-     * app, or Settings' own confirmation dialog to stop/disable this service
-     * during an active hard lock, bounce home before the action can complete.
+     * Prevents turning off Accessibility, turning off Usage Access, or uninstalling
+     * Lockout Gate directly from the phone. All other apps, settings, and permissions
+     * remain fully accessible.
      */
     private fun checkSelfProtection(pkg: String) {
         if (store.isFirstRun || !store.selfProtectionActive()) return
         val root = rootInActiveWindow ?: return
 
-        // Never interfere with Usage Access Settings or permission lists
-        if (nodeTreeContainsText(root, "Usage access", 0) ||
-            nodeTreeContainsText(root, "Usage statistics", 0) ||
-            nodeTreeContainsText(root, "Special app access", 0) ||
-            nodeTreeContainsText(root, "Permit usage tracking", 0)
-        ) {
-            return
-        }
-
         val appLabel = getString(R.string.app_name)
         val hasOwnLabel = nodeTreeContainsText(root, appLabel, 0)
+        if (!hasOwnLabel) return
 
-        // Only bounce if on the specific confirmation screen to stop/disable this service
-        val isDisableConfirmation = nodeTreeContainsText(root, "Stop Lockout Gate", 0) ||
-            nodeTreeContainsText(root, "Turn off", 0) ||
-            nodeTreeContainsText(root, "Disable", 0)
+        // 1. Uninstall attempt (Package installer, Play Store, Launcher, or Settings App Info)
+        val isUninstallAttempt = nodeTreeContainsText(root, "Uninstall", 0) ||
+            nodeTreeContainsText(root, "Do you want to uninstall", 0) ||
+            nodeTreeContainsText(root, "Delete app", 0)
 
-        val shouldBounce = when (pkg) {
-            "com.google.android.packageinstaller", "com.android.packageinstaller" -> hasOwnLabel
-            "com.android.settings" -> hasOwnLabel && isDisableConfirmation
-            else -> false
-        }
+        // 2. Accessibility or Usage Access disable attempt on Lockout Gate's specific detail screen
+        val isSettingsPage = pkg == "com.android.settings"
+        val isAppDetailScreen = !isAppList(root)
+
+        val isAccessibilityDisable = isSettingsPage && isAppDetailScreen &&
+            (nodeTreeContainsText(root, "Stop Lockout Gate", 0) ||
+             nodeTreeContainsText(root, "Turn off", 0) ||
+             nodeTreeContainsText(root, "Disable", 0) ||
+             nodeTreeContainsText(root, "Accessibility", 0))
+
+        val isUsageAccessDisable = isSettingsPage && isAppDetailScreen &&
+            (nodeTreeContainsText(root, "Usage access", 0) ||
+             nodeTreeContainsText(root, "Permit usage tracking", 0) ||
+             nodeTreeContainsText(root, "Usage statistics", 0))
+
+        val shouldBounce = isUninstallAttempt || isAccessibilityDisable || isUsageAccessDisable
 
         if (shouldBounce) {
             performGlobalAction(GLOBAL_ACTION_HOME)
         }
+    }
+
+    private fun isAppList(node: AccessibilityNodeInfo?): Boolean {
+        if (node == null) return false
+        return countChildItems(node, 0) > 3
+    }
+
+    private fun countChildItems(node: AccessibilityNodeInfo?, depth: Int): Int {
+        if (node == null || depth > MAX_NODE_DEPTH) return 0
+        var count = 0
+        val className = node.className?.toString()
+        if (className != null && (className.contains("RecyclerView") || className.contains("ListView"))) {
+            if (node.childCount > 3) return node.childCount
+        }
+        for (i in 0 until node.childCount) {
+            count += countChildItems(node.getChild(i), depth + 1)
+            if (count > 3) return count
+        }
+        return count
     }
 
     private fun nodeTreeContainsText(node: AccessibilityNodeInfo?, needle: String, depth: Int): Boolean {

@@ -142,8 +142,8 @@ class SessionStore(context: Context) {
     /** True when a blocked app should currently be blocked. */
     fun isLocked(): Boolean = enabled && locked
 
-    /** Self-protection only runs while the user has opted into a hard lock. */
-    fun selfProtectionActive(): Boolean = enabled && hardLockActive
+    /** Self-protection runs at all times while protection is enabled. */
+    fun selfProtectionActive(): Boolean = enabled
 
     fun dailyBreakCap(): Int =
         if (hardLockActive) Config.DAILY_BREAKS_HARD_LOCK else Config.DAILY_BREAKS_NORMAL
