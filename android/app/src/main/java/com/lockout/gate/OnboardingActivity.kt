@@ -65,7 +65,14 @@ class OnboardingActivity : AppCompatActivity() {
             }
         }
 
-        updateNavigationState(0)
+        val initialPosition = savedInstanceState?.getInt(KEY_CURRENT_STEP, 0) ?: 0
+        viewPager.setCurrentItem(initialPosition, false)
+        updateNavigationState(initialPosition)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt(KEY_CURRENT_STEP, viewPager.currentItem)
     }
 
     override fun onResume() {
@@ -193,5 +200,6 @@ class OnboardingActivity : AppCompatActivity() {
 
     companion object {
         private const val TOTAL_STEPS = 5
+        private const val KEY_CURRENT_STEP = "onboarding_current_step"
     }
 }

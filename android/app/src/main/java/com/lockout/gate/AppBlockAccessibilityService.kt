@@ -125,17 +125,33 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
     /**
      * If [pkg]'s current screen is the uninstall-confirmation dialog for this
-     * app, or Settings' own per-app Accessibility toggle screen for this
-     * service, bounce home before the action can complete.
+     * app, or Settings' own confirmation dialog to stop/disable this service
+     * during an active hard lock, bounce home before the action can complete.
      */
     private fun checkSelfProtection(pkg: String) {
+        if (store.isFirstRun || !store.selfProtectionActive()) return
         val root = rootInActiveWindow ?: return
+
+        // Never interfere with Usage Access Settings or permission lists
+        if (nodeTreeContainsText(root, "Usage access", 0) ||
+            nodeTreeContainsText(root, "Usage statistics", 0) ||
+            nodeTreeContainsText(root, "Special app access", 0) ||
+            nodeTreeContainsText(root, "Permit usage tracking", 0)
+        ) {
+            return
+        }
+
         val appLabel = getString(R.string.app_name)
         val hasOwnLabel = nodeTreeContainsText(root, appLabel, 0)
 
+        // Only bounce if on the specific confirmation screen to stop/disable this service
+        val isDisableConfirmation = nodeTreeContainsText(root, "Stop Lockout Gate", 0) ||
+            nodeTreeContainsText(root, "Turn off", 0) ||
+            nodeTreeContainsText(root, "Disable", 0)
+
         val shouldBounce = when (pkg) {
             "com.google.android.packageinstaller", "com.android.packageinstaller" -> hasOwnLabel
-            "com.android.settings" -> hasOwnLabel && nodeTreeHasSwitch(root, 0)
+            "com.android.settings" -> hasOwnLabel && isDisableConfirmation
             else -> false
         }
 

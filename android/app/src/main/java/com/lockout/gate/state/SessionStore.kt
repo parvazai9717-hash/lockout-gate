@@ -178,15 +178,12 @@ class SessionStore(context: Context) {
     }
 
     /**
-     * Offline fallback for a normal-mode break when the server can't be
-     * reached. Never used during a hard lock — that break needs a
-     * server-verified photo. The server stays the source of truth: once the
-     * phone is back online and the server reports no active break, this
-     * local break ends.
+     * Activates a break on-device instantly when starting a break offline or
+     * without server round-trip verification. Checks daily break allowance.
      */
     fun startBreakLocally(): Boolean {
         checkDailyAnalyticsReset()
-        if (hardLockActive || breaksRemainingToday <= 0) return false
+        if (breaksRemainingToday <= 0) return false
         val used = breaksUsedToday + 1
         prefs.edit()
             .putInt(KEY_BREAKS_USED, used)

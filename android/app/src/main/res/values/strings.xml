@@ -20,7 +20,7 @@
     <string name="enable_usage_access">Enable usage access</string>
 
     <string name="hard_lock_title">Start hard lock</string>
-    <string name="hard_lock_message">Your selected apps will be hard-blocked, with only 1 break a day that needs a photo of you eating. Until the lock ends, Lockout Gate will also stop you from turning off its accessibility service or uninstalling it on this phone. How many days (1 to 90)?</string>
+    <string name="hard_lock_message">Your selected apps will be hard-blocked, with 1 break allowed per day. Until the lock ends, Lockout Gate will also stop you from turning off its accessibility service or uninstalling it on this phone. How many days (1 to 90)?</string>
     <string name="hard_lock_days_hint">Number of days</string>
     <string name="hard_lock_confirm">Start</string>
     <string name="hard_lock_invalid_days">Enter a number of days from 1 to 90</string>
