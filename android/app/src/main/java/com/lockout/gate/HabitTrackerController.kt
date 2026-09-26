@@ -18,7 +18,9 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import com.google.android.material.checkbox.MaterialCheckBox
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.card.MaterialCardView
+import com.google.android.material.chip.Chip
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.lockout.gate.state.Habit
 import com.lockout.gate.state.HabitStore
@@ -28,8 +30,8 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
- * Drives the "Habits" tab: today's checklist with a completion percentage,
- * and a month-by-month grid (habits x days) like a spreadsheet habit tracker.
+ * Drives the "Habits" tab: modern Material 3 habit cards, preset chips,
+ * streak tracking, and an interactive monthly heatmap spreadsheet.
  */
 class HabitTrackerController(private val activity: AppCompatActivity, root: View) {
 
@@ -38,7 +40,9 @@ class HabitTrackerController(private val activity: AppCompatActivity, root: View
 
     private val todayDateText: TextView = root.findViewById(R.id.habitsTodayDateText)
     private val todayProgressText: TextView = root.findViewById(R.id.habitsTodayProgressText)
+    private val todayProgressBadge: TextView = root.findViewById(R.id.habitsTodayProgressBadge)
     private val todayProgressBar: LinearProgressIndicator = root.findViewById(R.id.habitsTodayProgressBar)
+    private val allDoneBanner: View = root.findViewById(R.id.allDoneBanner)
     private val newHabitInput: EditText = root.findViewById(R.id.newHabitInput)
     private val emptyText: TextView = root.findViewById(R.id.habitsEmptyText)
     private val todayList: LinearLayout = root.findViewById(R.id.habitsTodayList)
@@ -61,6 +65,9 @@ class HabitTrackerController(private val activity: AppCompatActivity, root: View
                 false
             }
         }
+
+        setupPresetChips(root)
+
         prevMonthButton.setOnClickListener {
             shownMonth = shownMonth.minusMonths(1)
             renderMonth()
@@ -73,9 +80,34 @@ class HabitTrackerController(private val activity: AppCompatActivity, root: View
         }
     }
 
+    private fun setupPresetChips(root: View) {
+        val presetMap = mapOf(
+            R.id.chipRead to "Read 20 pages 📖",
+            R.id.chipWorkout to "Daily Workout 🏋️",
+            R.id.chipWater to "Drink 2L Water 💧",
+            R.id.chipMeditate to "Meditate 10m 🧘",
+            R.id.chipNoSocial to "Limit Reels 🚫",
+        )
+        presetMap.forEach { (chipId, habitName) ->
+            root.findViewById<Chip>(chipId)?.setOnClickListener {
+                addHabitDirectly(habitName)
+            }
+        }
+    }
+
     fun render() {
         renderToday()
         renderMonth()
+    }
+
+    private fun addHabitDirectly(name: String) {
+        if (store.habits().any { it.name.equals(name, ignoreCase = true) }) {
+            Toast.makeText(activity, R.string.habits_duplicate, Toast.LENGTH_SHORT).show()
+            return
+        }
+        store.addHabit(name)
+        newHabitInput.text.clear()
+        render()
     }
 
     private fun addHabitFromInput() {
@@ -84,15 +116,9 @@ class HabitTrackerController(private val activity: AppCompatActivity, root: View
             Toast.makeText(activity, R.string.habits_name_required, Toast.LENGTH_SHORT).show()
             return
         }
-        if (store.habits().any { it.name.equals(name, ignoreCase = true) }) {
-            Toast.makeText(activity, R.string.habits_duplicate, Toast.LENGTH_SHORT).show()
-            return
-        }
-        store.addHabit(name)
-        newHabitInput.text.clear()
+        addHabitDirectly(name)
         activity.getSystemService(InputMethodManager::class.java)
             ?.hideSoftInputFromWindow(newHabitInput.windowToken, 0)
-        render()
     }
 
     private fun renderToday() {
@@ -102,58 +128,101 @@ class HabitTrackerController(private val activity: AppCompatActivity, root: View
         val habits = store.habits()
         val score = store.dayScore(today)
         val pct = HabitStore.percent(score)
+
+        todayProgressBadge.text = "$pct% DONE"
         todayProgressText.text = activity.getString(R.string.habits_today_progress, score.first, score.second, pct)
         todayProgressBar.setProgressCompat(pct, true)
+
+        val isAllDone = habits.isNotEmpty() && score.first == score.second
+        allDoneBanner.visibility = if (isAllDone) View.VISIBLE else View.GONE
 
         emptyText.visibility = if (habits.isEmpty()) View.VISIBLE else View.GONE
         todayList.removeAllViews()
         val month = YearMonth.from(today)
-        habits.forEach { todayList.addView(buildTodayRow(it, today, month)) }
+        habits.forEach { todayList.addView(buildTodayCard(it, today, month)) }
     }
 
-    private fun buildTodayRow(habit: Habit, today: LocalDate, month: YearMonth): View {
-        val row = LinearLayout(activity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+    private fun buildTodayCard(habit: Habit, today: LocalDate, month: YearMonth): View {
+        val isDone = store.isDone(habit.id, today)
+        val streak = store.habitStreak(habit.id, today)
+        val monthPct = HabitStore.percent(store.habitMonthScore(habit, month, today))
+
+        val card = MaterialCardView(activity).apply {
+            radius = dp(16).toFloat()
+            cardElevation = dp(1).toFloat()
+            strokeWidth = dp(1)
+            setStrokeColor(color(if (isDone) R.color.status_unlocked else R.color.card_stroke_light))
+            setCardBackgroundColor(color(if (isDone) R.color.background_light else R.color.surface_card_light))
+            useCompatPadding = true
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-            )
+            ).apply { setMargins(0, dp(4), 0, dp(4)) }
         }
 
-        val check = MaterialCheckBox(activity).apply {
-            text = habit.name
-            textSize = 15f
-            setTextColor(color(R.color.text_primary_light))
-            isChecked = store.isDone(habit.id, today)
+        val container = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+        }
+
+        val textContainer = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            setOnCheckedChangeListener { _, checked ->
-                store.setDone(habit.id, today, checked)
-                todayList.post { render() }
+        }
+
+        val titleView = TextView(activity).apply {
+            text = habit.name
+            textSize = 16f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(color(R.color.text_primary_light))
+        }
+
+        val streakText = if (streak > 0) "🔥 $streak day streak · " else ""
+        val subtitleView = TextView(activity).apply {
+            text = "$streakText$monthPct% this month"
+            textSize = 12f
+            setTextColor(color(R.color.text_secondary_light))
+            setPadding(0, dp(2), 0, 0)
+        }
+
+        textContainer.addView(titleView)
+        textContainer.addView(subtitleView)
+
+        val toggleButton = MaterialButton(activity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = if (isDone) "Done ✓" else "Check"
+            textSize = 13f
+            cornerRadius = dp(12)
+            if (isDone) {
+                setBackgroundColor(color(R.color.status_unlocked))
+                setTextColor(Color.WHITE)
+                strokeWidth = 0
+            } else {
+                setTextColor(color(R.color.primary))
+                setStrokeColorResource(R.color.card_stroke_light)
+            }
+            setOnClickListener {
+                store.setDone(habit.id, today, !isDone)
+                render()
             }
         }
 
-        val monthPct = HabitStore.percent(store.habitMonthScore(habit, month, today))
-        val pctText = TextView(activity).apply {
-            text = activity.getString(R.string.habits_row_month_pct, monthPct)
-            textSize = 12f
-            setTextColor(color(R.color.text_secondary_light))
-            setPadding(dp(8), 0, dp(4), 0)
-        }
-
-        val delete = ImageButton(activity).apply {
+        val deleteButton = ImageButton(activity).apply {
             setImageResource(android.R.drawable.ic_menu_delete)
             background = null
             contentDescription = activity.getString(R.string.habits_delete_title)
             setColorFilter(color(R.color.text_secondary_light))
-            layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
+            layoutParams = LinearLayout.LayoutParams(dp(36), dp(36)).apply {
+                setMargins(dp(8), 0, 0, 0)
+            }
             setOnClickListener { confirmDelete(habit) }
         }
 
-        row.addView(check)
-        row.addView(pctText)
-        row.addView(delete)
-        return row
+        container.addView(textContainer)
+        container.addView(toggleButton)
+        container.addView(deleteButton)
+        card.addView(container)
+        return card
     }
 
     private fun confirmDelete(habit: Habit) {
@@ -245,7 +314,7 @@ class HabitTrackerController(private val activity: AppCompatActivity, root: View
             setTextColor(Color.WHITE)
             setTypeface(typeface, Typeface.BOLD)
             background = GradientDrawable().apply {
-                cornerRadius = dp(6).toFloat()
+                cornerRadius = dp(8).toFloat()
                 when {
                     !trackable -> setColor(color(R.color.background_light))
                     done -> setColor(color(R.color.status_unlocked))
@@ -295,7 +364,7 @@ class HabitTrackerController(private val activity: AppCompatActivity, root: View
     private fun dp(value: Int) = (value * activity.resources.displayMetrics.density).toInt()
 
     companion object {
-        private const val CELL_DP = 28
+        private const val CELL_DP = 30
         private const val CELL_MARGIN_DP = 2
         private const val NAME_COLUMN_DP = 96
     }

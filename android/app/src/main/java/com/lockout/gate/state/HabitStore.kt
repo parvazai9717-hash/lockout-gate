@@ -96,6 +96,20 @@ class HabitStore(context: Context) {
         return done to total
     }
 
+    /** Returns current streak in consecutive days for a habit. */
+    fun habitStreak(habitId: String, today: LocalDate = LocalDate.now()): Int {
+        var streak = 0
+        var checkDate = today
+        if (!isDone(habitId, today)) {
+            checkDate = today.minusDays(1)
+        }
+        while (isDone(habitId, checkDate)) {
+            streak++
+            checkDate = checkDate.minusDays(1)
+        }
+        return streak
+    }
+
     /** Returns done/total across all habits that existed on [date]. */
     fun dayScore(date: LocalDate): Pair<Int, Int> {
         val done = completions()

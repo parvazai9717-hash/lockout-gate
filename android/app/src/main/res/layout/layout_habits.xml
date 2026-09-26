@@ -13,13 +13,13 @@
         android:orientation="vertical"
         android:padding="20dp">
 
-        <!-- Today -->
+        <!-- Today Checklist Card -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
             app:cardBackgroundColor="@color/surface_card_light"
-            app:cardCornerRadius="20dp"
+            app:cardCornerRadius="24dp"
             app:cardElevation="2dp"
             app:strokeColor="@color/card_stroke_light"
             app:strokeWidth="1dp">
@@ -30,14 +30,33 @@
                 android:orientation="vertical"
                 android:padding="20dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:letterSpacing="0.08"
-                    android:text="@string/habits_label_today"
-                    android:textColor="@color/text_secondary_light"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:letterSpacing="0.08"
+                        android:text="@string/habits_label_today"
+                        android:textColor="@color/text_secondary_light"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/habitsTodayProgressBadge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_status_badge_unlocked"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="4dp"
+                        android:textColor="@color/status_unlocked"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/habitsTodayDateText"
@@ -45,7 +64,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:textColor="@color/text_primary_light"
-                    android:textSize="18sp"
+                    android:textSize="20sp"
                     android:textStyle="bold" />
 
                 <TextView
@@ -64,10 +83,61 @@
                     android:max="100"
                     app:indicatorColor="@color/status_unlocked"
                     app:trackColor="@color/card_stroke_light"
-                    app:trackCornerRadius="4dp"
-                    app:trackThickness="8dp" />
+                    app:trackCornerRadius="6dp"
+                    app:trackThickness="10dp" />
 
-                <!-- Add habit -->
+                <!-- All Done Banner -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/allDoneBanner"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:visibility="gone"
+                    app:cardBackgroundColor="#ECFDF5"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="#A7F3D0"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:padding="14dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🎉"
+                            android:textSize="22sp" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="All Done for Today!"
+                                android:textColor="#065F46"
+                                android:textSize="15sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="You've completed every habit on your list. Great focus!"
+                                android:textColor="#047857"
+                                android:textSize="12sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Add habit row -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -80,13 +150,17 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:importantForAutofill="no"
+                        android:background="@drawable/bg_search_input"
                         android:hint="@string/habits_add_hint"
+                        android:importantForAutofill="no"
                         android:imeOptions="actionDone"
                         android:inputType="textCapSentences"
                         android:maxLength="60"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="12dp"
                         android:textColor="@color/text_primary_light"
-                        android:textColorHint="@color/text_secondary_light" />
+                        android:textColorHint="@color/text_secondary_light"
+                        android:textSize="14sp" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/addHabitButton"
@@ -95,8 +169,68 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
                         android:text="@string/habits_add_button"
-                        app:cornerRadius="12dp" />
+                        app:cornerRadius="14dp" />
                 </LinearLayout>
+
+                <!-- Preset Suggestions Chips -->
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:scrollbars="none">
+
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/presetChipGroup"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:singleLine="true">
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipRead"
+                            style="@style/Widget.Material3.Chip.Suggestion"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="📖 Read 20 pages"
+                            android:textSize="12sp"
+                            app:chipCornerRadius="12dp" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipWorkout"
+                            style="@style/Widget.Material3.Chip.Suggestion"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🏋️ Daily Workout"
+                            android:textSize="12sp"
+                            app:chipCornerRadius="12dp" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipWater"
+                            style="@style/Widget.Material3.Chip.Suggestion"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="💧 Drink Water"
+                            android:textSize="12sp"
+                            app:chipCornerRadius="12dp" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipMeditate"
+                            style="@style/Widget.Material3.Chip.Suggestion"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🧘 Meditate 10m"
+                            android:textSize="12sp"
+                            app:chipCornerRadius="12dp" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipNoSocial"
+                            style="@style/Widget.Material3.Chip.Suggestion"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🚫 Limit Reels"
+                            android:textSize="12sp"
+                            app:chipCornerRadius="12dp" />
+                    </com.google.android.material.chip.ChipGroup>
+                </HorizontalScrollView>
 
                 <TextView
                     android:id="@+id/habitsEmptyText"
@@ -107,22 +241,23 @@
                     android:textColor="@color/text_secondary_light"
                     android:textSize="14sp" />
 
+                <!-- Habits List Container -->
                 <LinearLayout
                     android:id="@+id/habitsTodayList"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="12dp"
                     android:orientation="vertical" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Monthly progress -->
+        <!-- Monthly Progress Heatmap Card -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
             app:cardBackgroundColor="@color/surface_card_light"
-            app:cardCornerRadius="20dp"
+            app:cardCornerRadius="24dp"
             app:cardElevation="2dp"
             app:strokeColor="@color/card_stroke_light"
             app:strokeWidth="1dp">
@@ -131,7 +266,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="20dp">
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -168,7 +303,7 @@
                         android:layout_weight="1"
                         android:gravity="center"
                         android:textColor="@color/text_primary_light"
-                        android:textSize="16sp"
+                        android:textSize="18sp"
                         android:textStyle="bold" />
 
                     <com.google.android.material.button.MaterialButton
@@ -201,13 +336,13 @@
                     android:max="100"
                     app:indicatorColor="@color/primary"
                     app:trackColor="@color/card_stroke_light"
-                    app:trackCornerRadius="4dp"
-                    app:trackThickness="8dp" />
+                    app:trackCornerRadius="6dp"
+                    app:trackThickness="10dp" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="14dp"
                     android:text="@string/habits_grid_hint"
                     android:textColor="@color/text_secondary_light"
                     android:textSize="12sp" />
@@ -216,7 +351,7 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="10dp"
                     android:orientation="horizontal">
 
                     <LinearLayout
