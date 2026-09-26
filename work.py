@@ -18,8 +18,8 @@ the phone reports real foreground usage of the watched apps as it happens
 walking away and coming back later doesn't burn it down.
 
     GET  /v1/lock/state            — current lock/break/hard-lock status.
-    POST /v1/break/start           — start a normal-mode break (no photo).
-    POST /v1/break/claim           — start a hard-lock break (photo + Gemini).
+    POST /v1/break/start           — start a break (no photo); 1/day during a hard lock.
+    POST /v1/break/claim           — legacy photo-verified hard-lock break.
     POST /v1/break/report          — report real usage ms for the active break.
     POST /v1/lock/hardlock/start   — begin an N-day hard lock.
     POST /v1/lock/emergency/disable — turn off all blocking (max 1x/month).
@@ -278,21 +278,20 @@ def break_start(
     x_auth: str = Header(default=""),
     x_device_secret: str = Header(default=""),
 ) -> LockState:
-    """Start a normal-mode break — no photo needed. Rejected during a hard lock."""
+    """Start a break — no photo needed. During a hard lock the daily cap drops to 1."""
     _check_auth(x_auth)
     limit_ms = _break_limit_ms(body.minutes)
     with closing(db()) as conn, conn:
         row = _load_device(conn, body.device_id, x_device_secret)
         if not row["enabled"]:
             return _build_state(conn, body.device_id, row)
-        if _hard_lock_active(row):
-            raise HTTPException(400, "hard lock is active — use /v1/break/claim with a photo instead")
         if row["active_break_started_at"] is not None:
             return _build_state(conn, body.device_id, row)  # already active, idempotent
 
+        cap = MAX_HARDLOCK_BREAKS_PER_DAY if _hard_lock_active(row) else MAX_BREAKS_PER_DAY
         breaks_used = _breaks_used_today(conn, body.device_id)
-        if breaks_used >= MAX_BREAKS_PER_DAY:
-            raise HTTPException(429, f"daily break limit reached ({breaks_used}/{MAX_BREAKS_PER_DAY})")
+        if breaks_used >= cap:
+            raise HTTPException(429, f"daily break limit reached ({breaks_used}/{cap})")
 
         now = int(time.time())
         conn.execute(

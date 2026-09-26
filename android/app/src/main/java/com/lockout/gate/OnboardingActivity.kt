@@ -9,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
@@ -158,7 +159,15 @@ class OnboardingActivity : AppCompatActivity() {
                 grantBtn?.text = "Grant Accessibility Permission"
                 grantBtn?.isEnabled = true
                 grantBtn?.setOnClickListener {
-                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                    // Google Play requires this disclosure before the user enables the service.
+                    AlertDialog.Builder(this@OnboardingActivity)
+                        .setTitle(R.string.accessibility_disclosure_title)
+                        .setMessage(R.string.accessibility_disclosure_message)
+                        .setPositiveButton(R.string.accessibility_disclosure_agree) { _, _ ->
+                            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                        }
+                        .setNegativeButton(R.string.accessibility_disclosure_decline, null)
+                        .show()
                 }
             }
         }
