@@ -26,13 +26,14 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
+import java.io.IOException
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Start a break. In normal mode this is a single tap (no photo needed). If
- * a hard lock is currently active, the daily allotment drops to one, and
- * that one break requires a Gemini-verified photo of yourself eating —
- * fetches fresh state on open rather than trusting a possibly-stale cache,
- * since this decision matters.
+ * a hard lock is active, the daily allotment drops to one, and that break
+ * requires a Gemini-verified photo of yourself eating — which needs the
+ * server, so there is no offline fallback during a hard lock.
  */
 class BreakActivity : AppCompatActivity() {
 
@@ -53,9 +54,7 @@ class BreakActivity : AppCompatActivity() {
 
         val bgImageView = findViewById<ImageView>(R.id.customBackgroundImageView)
         val scrimView = findViewById<View>(R.id.backgroundScrimView)
-        if (bgImageView != null) {
-            BackgroundHelper.applyCustomBackground(this, bgImageView, scrimView)
-        }
+        BackgroundHelper.applyCustomBackground(this, bgImageView, scrimView)
 
         findViewById<Button>(R.id.pickPhotoButton).setOnClickListener {
             pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
@@ -63,20 +62,32 @@ class BreakActivity : AppCompatActivity() {
         findViewById<Button>(R.id.submitBreakButton).setOnClickListener { submit() }
 
         val chipGroup = findViewById<ChipGroup>(R.id.breakDurationChipGroup)
-        chipGroup?.setOnCheckedStateChangeListener { _, checkedIds ->
+        chipGroup.check(chipIdFor(store.selectedBreakMinutes))
+        chipGroup.setOnCheckedStateChangeListener { _, checkedIds ->
             if (checkedIds.isNotEmpty()) {
-                val mins = when (checkedIds.first()) {
-                    R.id.chip10Min -> 10
-                    R.id.chip15Min -> 15
-                    R.id.chip20Min -> 20
-                    R.id.chip45Min -> 45
-                    else -> 30
-                }
-                store.selectedBreakMinutes = mins
+                store.selectedBreakMinutes = minutesFor(checkedIds.first())
+                render()
             }
         }
 
+        render()
         refreshAndRender()
+    }
+
+    private fun chipIdFor(minutes: Int): Int = when (minutes) {
+        10 -> R.id.chip10Min
+        15 -> R.id.chip15Min
+        20 -> R.id.chip20Min
+        45 -> R.id.chip45Min
+        else -> R.id.chip30Min
+    }
+
+    private fun minutesFor(chipId: Int): Int = when (chipId) {
+        R.id.chip10Min -> 10
+        R.id.chip15Min -> 15
+        R.id.chip20Min -> 20
+        R.id.chip45Min -> 45
+        else -> 30
     }
 
     private fun refreshAndRender() {
@@ -84,11 +95,11 @@ class BreakActivity : AppCompatActivity() {
             try {
                 val resp = ApiClient.api.lockState(Config.DEVICE_KEY, store.deviceId)
                 val body = resp.body()
-                if (resp.isSuccessful && body != null) {
-                    store.update(body)
-                }
+                if (resp.isSuccessful && body != null) store.update(body)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                // Fall back to cached state if offline.
+                // Offline or unexpected response — keep the cached state.
             }
             render()
         }
@@ -96,9 +107,12 @@ class BreakActivity : AppCompatActivity() {
 
     private fun render() {
         hardLockActive = store.hardLockActive
-        findViewById<TextView>(R.id.breakInfoText).text = getString(
-            R.string.break_info, store.breaksRemainingToday, store.selectedBreakMinutes,
-        )
+        val info = findViewById<TextView>(R.id.breakInfoText)
+        info.text = if (store.activeBreak) {
+            getString(R.string.break_info_already_active)
+        } else {
+            getString(R.string.break_info, store.breaksRemainingToday, store.selectedBreakMinutes)
+        }
         val needsPhoto = hardLockActive
         findViewById<Button>(R.id.pickPhotoButton).visibility = if (needsPhoto) View.VISIBLE else View.GONE
         findViewById<TextView>(R.id.pickedPhotoText).visibility = if (needsPhoto) View.VISIBLE else View.GONE
@@ -108,15 +122,20 @@ class BreakActivity : AppCompatActivity() {
     }
 
     private fun handlePicked(uri: Uri) {
-        pickedMimeType = contentResolver.getType(uri) ?: "image/jpeg"
-        val tmp = File(cacheDir, "break_${System.currentTimeMillis()}.jpg")
-        contentResolver.openInputStream(uri)?.use { input ->
-            tmp.outputStream().use { output -> input.copyTo(output) }
+        try {
+            pickedMimeType = contentResolver.getType(uri) ?: "image/jpeg"
+            val tmp = File(cacheDir, "break_${System.currentTimeMillis()}.jpg")
+            contentResolver.openInputStream(uri)?.use { input ->
+                tmp.outputStream().use { output -> input.copyTo(output) }
+            }
+            pickedFile = tmp
+            findViewById<TextView>(R.id.pickedPhotoText).text = getString(
+                R.string.photo_selected_format, tmp.name, tmp.length() / 1024,
+            )
+        } catch (e: IOException) {
+            pickedFile = null
+            Toast.makeText(this, R.string.photo_read_failed, Toast.LENGTH_SHORT).show()
         }
-        pickedFile = tmp
-        findViewById<TextView>(R.id.pickedPhotoText).text = getString(
-            R.string.photo_selected_format, tmp.name, tmp.length() / 1024,
-        )
     }
 
     private fun submit() {
@@ -125,43 +144,64 @@ class BreakActivity : AppCompatActivity() {
             startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
             return
         }
+        if (store.activeBreak) {
+            Toast.makeText(this, R.string.break_info_already_active, Toast.LENGTH_SHORT).show()
+            return
+        }
         if (hardLockActive) submitWithPhoto() else submitSimple()
     }
 
-    private fun submitSimple() {
-        val progressBar = findViewById<ProgressBar>(R.id.breakProgressBar)
-        val resultText = findViewById<TextView>(R.id.breakResultText)
-        progressBar.visibility = View.VISIBLE
-        resultText.text = ""
+    private fun setBusy(busy: Boolean) {
+        findViewById<ProgressBar>(R.id.breakProgressBar).visibility = if (busy) View.VISIBLE else View.GONE
+        findViewById<Button>(R.id.submitBreakButton).isEnabled = !busy
+    }
 
+    private fun showResult(text: String) {
+        findViewById<TextView>(R.id.breakResultText).text = text
+    }
+
+    private fun startOfflineBreak() {
+        showResult(
+            if (store.startBreakLocally()) {
+                getString(R.string.break_result_offline_started, store.selectedBreakMinutes)
+            } else {
+                getString(R.string.break_result_limit_reached)
+            },
+        )
+    }
+
+    private fun submitSimple() {
+        setBusy(true)
+        showResult("")
         lifecycleScope.launch {
             try {
-                val resp = ApiClient.api.startBreak(Config.DEVICE_KEY, DeviceRequest(store.deviceId))
-                progressBar.visibility = View.GONE
+                val resp = ApiClient.api.startBreak(
+                    Config.DEVICE_KEY,
+                    DeviceRequest(store.deviceId, store.selectedBreakMinutes),
+                )
                 val body = resp.body()
-                if (resp.isSuccessful && body != null) {
-                    store.update(body)
-                    resultText.text = getString(R.string.break_result_started, store.selectedBreakMinutes)
-                } else if (resp.code() == 429) {
-                    resultText.text = getString(R.string.break_result_limit_reached)
-                } else {
-                    // Local offline fallback
-                    val success = store.startBreakLocally()
-                    resultText.text = if (success) {
-                        getString(R.string.break_result_offline_started, store.selectedBreakMinutes)
-                    } else {
-                        getString(R.string.break_result_limit_reached)
+                when {
+                    resp.isSuccessful && body != null -> {
+                        store.update(body)
+                        showResult(getString(R.string.break_result_started, store.selectedBreakMinutes))
                     }
+                    resp.code() == 429 -> showResult(getString(R.string.break_result_limit_reached))
+                    resp.code() == 400 -> {
+                        showResult(getString(R.string.break_result_hard_lock_needs_photo))
+                        refreshAndRender()
+                    }
+                    resp.code() >= 500 -> startOfflineBreak()
+                    else -> showResult(getString(R.string.break_result_server_error, resp.code()))
                 }
+            } catch (e: IOException) {
+                startOfflineBreak()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                progressBar.visibility = View.GONE
-                // Local offline fallback
-                val success = store.startBreakLocally()
-                resultText.text = if (success) {
-                    getString(R.string.break_result_offline_started, store.selectedBreakMinutes)
-                } else {
-                    getString(R.string.break_result_limit_reached)
-                }
+                showResult(getString(R.string.break_result_unexpected))
+            } finally {
+                setBusy(false)
+                render()
             }
         }
     }
@@ -174,11 +214,8 @@ class BreakActivity : AppCompatActivity() {
             return
         }
 
-        val progressBar = findViewById<ProgressBar>(R.id.breakProgressBar)
-        val resultText = findViewById<TextView>(R.id.breakResultText)
-        progressBar.visibility = View.VISIBLE
-        resultText.text = ""
-
+        setBusy(true)
+        showResult("")
         lifecycleScope.launch {
             try {
                 val response = withContext(Dispatchers.IO) {
@@ -187,37 +224,36 @@ class BreakActivity : AppCompatActivity() {
                         file.name,
                         file.asRequestBody(mimeType.toMediaTypeOrNull()),
                     )
+                    val textType = "text/plain".toMediaTypeOrNull()
                     ApiClient.api.claimBreak(
                         Config.DEVICE_KEY,
-                        store.deviceId.toRequestBody("text/plain".toMediaTypeOrNull()),
+                        store.deviceId.toRequestBody(textType),
+                        store.selectedBreakMinutes.toString().toRequestBody(textType),
                         filePart,
                     )
                 }
-                progressBar.visibility = View.GONE
                 val body = response.body()
                 if (response.isSuccessful && body != null) {
                     store.update(body.toLockState())
-                    resultText.text = if (body.accepted) {
-                        getString(R.string.break_result_started, store.selectedBreakMinutes)
-                    } else {
-                        getString(R.string.break_result_rejected, body.reasoning)
-                    }
+                    showResult(
+                        if (body.accepted) {
+                            getString(R.string.break_result_started, store.selectedBreakMinutes)
+                        } else {
+                            getString(R.string.break_result_rejected, body.reasoning)
+                        },
+                    )
                 } else {
-                    val success = store.startBreakLocally()
-                    resultText.text = if (success) {
-                        getString(R.string.break_result_offline_started, store.selectedBreakMinutes)
-                    } else {
-                        getString(R.string.break_result_limit_reached)
-                    }
+                    showResult(getString(R.string.break_result_server_error, response.code()))
                 }
+            } catch (e: IOException) {
+                showResult(getString(R.string.break_result_photo_needs_internet))
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                progressBar.visibility = View.GONE
-                val success = store.startBreakLocally()
-                resultText.text = if (success) {
-                    getString(R.string.break_result_offline_started, store.selectedBreakMinutes)
-                } else {
-                    getString(R.string.break_result_limit_reached)
-                }
+                showResult(getString(R.string.break_result_unexpected))
+            } finally {
+                setBusy(false)
+                render()
             }
         }
     }

@@ -20,9 +20,10 @@ data class LockState(
     val breaks_remaining_today: Int,
     val active_break: Boolean,
     val emergency_available: Boolean,
+    val active_break_remaining_ms: Long = 0L,
 )
 
-data class DeviceRequest(val device_id: String)
+data class DeviceRequest(val device_id: String, val minutes: Int? = null)
 data class BreakReportRequest(val device_id: String, val delta_ms: Long)
 data class HardLockStartRequest(val device_id: String, val days: Int)
 
@@ -38,15 +39,14 @@ data class BreakClaimResponse(
     val breaks_remaining_today: Int,
     val active_break: Boolean,
     val emergency_available: Boolean,
+    val active_break_remaining_ms: Long = 0L,
 ) {
     fun toLockState() = LockState(
         enabled, locked, hard_lock_active, hard_lock_days_remaining,
         breaks_used_today, breaks_remaining_today, active_break, emergency_available,
+        active_break_remaining_ms,
     )
 }
-
-data class CheckRequest(val device_id: String, val used_ms: Long)
-data class CheckResponse(val allowed: Boolean, val reason: String, val used_ms: Long, val remaining_ms: Long)
 
 interface LockoutApi {
     @GET("/v1/lock/state")
@@ -66,6 +66,7 @@ interface LockoutApi {
     suspend fun claimBreak(
         @Header("X-Auth") auth: String,
         @Part("device_id") deviceId: RequestBody,
+        @Part("minutes") minutes: RequestBody,
         @Part file: MultipartBody.Part,
     ): Response<BreakClaimResponse>
 
@@ -92,10 +93,4 @@ interface LockoutApi {
         @Header("X-Auth") auth: String,
         @Body body: DeviceRequest,
     ): Response<LockState>
-
-    @POST("/v1/check")
-    suspend fun check(
-        @Header("X-Auth") auth: String,
-        @Body body: CheckRequest,
-    ): Response<CheckResponse>
 }

@@ -40,22 +40,20 @@ object Config {
      */
     const val STATE_REFRESH_INTERVAL_MS: Long = 15_000L
 
-    /** Must match the server's LOCKOUT_BREAK_MINUTES env var (default 30). */
+    /** Default break length; must match the server's LOCKOUT_BREAK_MINUTES (default 30). */
     const val BREAK_MINUTES: Int = 30
-    const val BREAK_MS: Long = BREAK_MINUTES * 60_000L
 
-    /** Default daily break limit for local offline enforcement */
-    const val DEFAULT_DAILY_BREAKS: Int = 2
+    /** Must match the server's MAX_BREAKS_PER_DAY / MAX_HARDLOCK_BREAKS_PER_DAY. */
+    const val DAILY_BREAKS_NORMAL: Int = 3
+    const val DAILY_BREAKS_HARD_LOCK: Int = 1
 
     /**
      * Watched so the accessibility service can bounce the user to the home
-     * screen the instant it sees a screen for disabling this service or
-     * uninstalling this app — before the action completes. Only effective
-     * while the service is still enabled and running (a disabled service
-     * can't intercept anything, so re-enabling is never blocked). This is
-     * deliberate friction, not a hard lock: `adb shell pm uninstall` and
-     * `adb shell settings put secure enabled_accessibility_services ...`
-     * bypass the UI entirely and always work from a PC.
+     * screen when it sees a screen for disabling this service or uninstalling
+     * this app. Only active during a hard lock the user explicitly opted
+     * into (see SessionStore.selfProtectionActive), and only while the
+     * service is still running — re-enabling is never blocked, and
+     * `adb shell pm uninstall` from a PC always works.
      */
     val SELF_PROTECT_PACKAGES: Set<String> = setOf(
         "com.android.settings",

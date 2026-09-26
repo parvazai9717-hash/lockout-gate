@@ -129,14 +129,15 @@ class AppPickerActivity : AppCompatActivity() {
             val isStrictLocked = pkg in store.strictBlockedPackages
             val isStandardBlocked = pkg in store.standardBlockedPackages
 
+            // Rows are recycled between modes, so clear both listeners first.
             holder.checkBox.setOnCheckedChangeListener(null)
+            holder.checkBox.setOnClickListener(null)
 
             if (isDefaultEntertainment || isStrictLocked) {
                 holder.checkBox.isChecked = true
-                holder.checkBox.isEnabled = false // LOCKED PERMANENTLY!
+                holder.checkBox.isEnabled = false
                 holder.badgeView.visibility = View.VISIBLE
             } else if (!isStrictMode) {
-                // Standard mode
                 holder.badgeView.visibility = View.GONE
                 holder.checkBox.isChecked = isStandardBlocked
                 holder.checkBox.isEnabled = true
@@ -146,24 +147,18 @@ class AppPickerActivity : AppCompatActivity() {
                     store.standardBlockedPackages = set
                 }
             } else {
-                // Strict mode
+                // Strict tab only adds apps to the permanent list; standard
+                // blocks are managed on the Standard tab.
                 holder.badgeView.visibility = View.GONE
-                holder.checkBox.isChecked = isStandardBlocked
+                holder.checkBox.isChecked = false
                 holder.checkBox.isEnabled = true
                 holder.checkBox.setOnClickListener {
-                    if (holder.checkBox.isChecked) {
-                        // User trying to check strict permanent lock
-                        promptStrictConfirmation(app) {
-                            val strictSet = store.strictBlockedPackages.toMutableSet()
-                            strictSet.add(pkg)
-                            store.strictBlockedPackages = strictSet
-
-                            val stdSet = store.standardBlockedPackages.toMutableSet()
-                            stdSet.remove(pkg)
-                            store.standardBlockedPackages = stdSet
-
-                            notifyItemChanged(position)
-                        }
+                    if (!holder.checkBox.isChecked) return@setOnClickListener
+                    promptStrictConfirmation(app) {
+                        store.strictBlockedPackages = store.strictBlockedPackages + pkg
+                        store.standardBlockedPackages = store.standardBlockedPackages - pkg
+                        val pos = holder.bindingAdapterPosition
+                        if (pos != RecyclerView.NO_POSITION) notifyItemChanged(pos)
                     }
                 }
             }
