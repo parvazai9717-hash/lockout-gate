@@ -345,6 +345,20 @@ class AppBlockAccessibilityService : AccessibilityService() {
         }
 
         val budgetMs = store.selectedBreakMinutes * 60_000L
+        store.usageCheckpointMs = now
+        store.cumulativeBreakUsageMs += delta
+
+        // If break budget is exhausted, end the break immediately and block foreground app
+        if (store.cumulativeBreakUsageMs >= budgetMs) {
+            store.endBreakLocally()
+            cancelBreakNotification()
+            val fg = lastForegroundPackage
+            if (fg != null && fg in blockedPkgs && store.isLocked()) {
+                handler.post { blockNow() }
+            }
+            return
+        }
+
         var serverAnswered = false
         try {
             val resp = ApiClient.api.reportBreakUsage(
@@ -354,27 +368,34 @@ class AppBlockAccessibilityService : AccessibilityService() {
             val body = resp.body()
             if (resp.isSuccessful && body != null) {
                 serverAnswered = true
-                store.usageCheckpointMs = now
-                store.cumulativeBreakUsageMs += delta
                 store.update(body)
             }
         } catch (e: Exception) {
             Log.w(TAG, "Break report failed; using offline budget", e)
         }
 
-        if (!serverAnswered) {
-            store.usageCheckpointMs = now
-            store.cumulativeBreakUsageMs += delta
-            if (store.cumulativeBreakUsageMs >= budgetMs) store.endBreakLocally()
-        }
-
         if (!store.activeBreak) {
             cancelBreakNotification()
+            val fg = lastForegroundPackage
+            if (fg != null && fg in blockedPkgs && store.isLocked()) {
+                handler.post { blockNow() }
+            }
             return
         }
 
         val remainingMs = store.serverBreakRemainingMs.takeIf { serverAnswered && it > 0L }
             ?: (budgetMs - store.cumulativeBreakUsageMs).coerceAtLeast(0L)
+
+        if (remainingMs <= 0L) {
+            store.endBreakLocally()
+            cancelBreakNotification()
+            val fg = lastForegroundPackage
+            if (fg != null && fg in blockedPkgs && store.isLocked()) {
+                handler.post { blockNow() }
+            }
+            return
+        }
+
         updateBreakNotification(remainingMs)
         checkPreBlockWarnings(remainingMs)
     }
