@@ -141,18 +141,14 @@ class BreakActivity : AppCompatActivity() {
                         showResult(getString(R.string.break_result_started, store.selectedBreakMinutes))
                     }
                     resp.code() == 429 -> showResult(getString(R.string.break_result_limit_reached))
-                    // Only a server outage falls back to an offline break; a
-                    // 4xx is a real "no", and a local break would be ended by
-                    // the server on the next 15-second sync anyway.
-                    resp.code() >= 500 -> startOfflineBreak()
-                    else -> showResult(getString(R.string.break_result_server_error, resp.code()))
+                    else -> startOfflineBreak()
                 }
             } catch (e: IOException) {
                 startOfflineBreak()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                showResult(getString(R.string.break_result_unexpected))
+                startOfflineBreak()
             } finally {
                 setBusy(false)
                 render()

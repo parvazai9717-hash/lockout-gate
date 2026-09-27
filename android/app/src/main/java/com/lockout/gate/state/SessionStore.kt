@@ -183,11 +183,13 @@ class SessionStore(context: Context) {
      */
     fun startBreakLocally(): Boolean {
         checkDailyAnalyticsReset()
-        if (breaksRemainingToday <= 0) return false
+        val maxAllowed = dailyBreakCap()
+        if (breaksUsedToday >= maxAllowed) return false
         val used = breaksUsedToday + 1
+        val remaining = (maxAllowed - used).coerceAtLeast(0)
         prefs.edit()
             .putInt(KEY_BREAKS_USED, used)
-            .putInt(KEY_BREAKS_REMAINING, (dailyBreakCap() - used).coerceAtLeast(0))
+            .putInt(KEY_BREAKS_REMAINING, remaining)
             .putBoolean(KEY_ACTIVE_BREAK, true)
             .putBoolean(KEY_LOCKED, false)
             .putLong(KEY_USAGE_CHECKPOINT, System.currentTimeMillis())

@@ -257,15 +257,18 @@ class MainActivity : AppCompatActivity() {
                 val body = resp.body()
                 if (resp.isSuccessful && body != null) {
                     store.update(body)
-                    renderStatus()
-                    Toast.makeText(this@MainActivity, getString(R.string.hard_lock_started, days), Toast.LENGTH_LONG).show()
                 } else {
-                    toast(getString(R.string.hard_lock_failed, resp.code()))
+                    store.hardLockActive = true
+                    store.hardLockDaysRemaining = days
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                toast(getString(R.string.hard_lock_needs_internet))
+                store.hardLockActive = true
+                store.hardLockDaysRemaining = days
+            } finally {
+                renderStatus()
+                Toast.makeText(this@MainActivity, getString(R.string.hard_lock_started, days), Toast.LENGTH_LONG).show()
             }
         }
     }
