@@ -192,6 +192,7 @@ class SessionStore(context: Context) {
             .putInt(KEY_BREAKS_REMAINING, remaining)
             .putBoolean(KEY_ACTIVE_BREAK, true)
             .putBoolean(KEY_LOCKED, false)
+            .putBoolean(KEY_IS_LOCAL_BREAK, true)
             .putLong(KEY_USAGE_CHECKPOINT, System.currentTimeMillis())
             .putLong(KEY_CUMULATIVE_BREAK_USAGE, 0L)
             .putLong(KEY_SERVER_BREAK_REMAINING, 0L)
@@ -206,6 +207,7 @@ class SessionStore(context: Context) {
         prefs.edit()
             .putBoolean(KEY_ACTIVE_BREAK, false)
             .putBoolean(KEY_LOCKED, true)
+            .putBoolean(KEY_IS_LOCAL_BREAK, false)
             .putLong(KEY_CUMULATIVE_BREAK_USAGE, 0L)
             .putLong(KEY_SERVER_BREAK_REMAINING, 0L)
             .apply()
@@ -214,29 +216,42 @@ class SessionStore(context: Context) {
     fun update(state: LockState) {
         checkDailyAnalyticsReset()
         val wasActiveBreak = activeBreak
+
+        // If a local break is currently active, preserve activeBreak and locked state
+        // until the local break budget is fully exhausted.
+        val keepLocalBreak = isLocalBreak && activeBreak
+
+        val effectiveActiveBreak = if (keepLocalBreak) true else state.active_break
+        val effectiveLocked = if (keepLocalBreak) false else state.locked
+
         val edit = prefs.edit()
             .putBoolean(KEY_ENABLED, state.enabled)
-            .putBoolean(KEY_LOCKED, state.locked)
+            .putBoolean(KEY_LOCKED, effectiveLocked)
             .putBoolean(KEY_HARD_LOCK_ACTIVE, state.hard_lock_active)
             .putInt(KEY_HARD_LOCK_DAYS, state.hard_lock_days_remaining)
             .putInt(KEY_BREAKS_USED, state.breaks_used_today)
             .putInt(KEY_BREAKS_REMAINING, state.breaks_remaining_today)
-            .putBoolean(KEY_ACTIVE_BREAK, state.active_break)
+            .putBoolean(KEY_ACTIVE_BREAK, effectiveActiveBreak)
             .putBoolean(KEY_EMERGENCY_AVAILABLE, state.emergency_available)
             .putLong(KEY_SERVER_BREAK_REMAINING, state.active_break_remaining_ms)
 
-        if (state.active_break && (!wasActiveBreak || usageCheckpointMs <= 0L)) {
+        if (effectiveActiveBreak && (!wasActiveBreak || usageCheckpointMs <= 0L)) {
             edit.putLong(KEY_USAGE_CHECKPOINT, System.currentTimeMillis())
                 .putLong(KEY_CUMULATIVE_BREAK_USAGE, 0L)
                 .putBoolean(KEY_WARNED_5MIN, false)
                 .putBoolean(KEY_WARNED_1MIN, false)
-        } else if (!state.active_break) {
-            edit.putLong(KEY_CUMULATIVE_BREAK_USAGE, 0L)
+        } else if (!effectiveActiveBreak) {
+            edit.putBoolean(KEY_IS_LOCAL_BREAK, false)
+                .putLong(KEY_CUMULATIVE_BREAK_USAGE, 0L)
                 .putBoolean(KEY_WARNED_5MIN, false)
                 .putBoolean(KEY_WARNED_1MIN, false)
         }
         edit.apply()
     }
+
+    var isLocalBreak: Boolean
+        get() = prefs.getBoolean(KEY_IS_LOCAL_BREAK, false)
+        set(value) = prefs.edit().putBoolean(KEY_IS_LOCAL_BREAK, value).apply()
 
     companion object {
         private const val KEY_ENABLED = "enabled"
@@ -246,6 +261,7 @@ class SessionStore(context: Context) {
         private const val KEY_BREAKS_USED = "breaks_used_today"
         private const val KEY_BREAKS_REMAINING = "breaks_remaining_today"
         private const val KEY_ACTIVE_BREAK = "active_break"
+        private const val KEY_IS_LOCAL_BREAK = "is_local_break"
         private const val KEY_EMERGENCY_AVAILABLE = "emergency_available"
         private const val KEY_SERVER_BREAK_REMAINING = "server_break_remaining_ms"
         private const val KEY_USAGE_CHECKPOINT = "usage_checkpoint_ms"
