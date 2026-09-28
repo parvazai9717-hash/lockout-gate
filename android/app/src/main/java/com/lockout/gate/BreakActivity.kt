@@ -85,12 +85,15 @@ class BreakActivity : AppCompatActivity() {
 
     private fun render() {
         val info = findViewById<TextView>(R.id.breakInfoText)
-        info.text = if (store.activeBreak) {
-            getString(R.string.break_info_already_active)
-        } else {
-            getString(R.string.break_info, store.breaksRemainingToday, store.selectedBreakMinutes)
+        val limitReached = store.breaksRemainingToday <= 0 || store.breaksUsedToday >= store.dailyBreakCap()
+        info.text = when {
+            store.activeBreak -> getString(R.string.break_info_already_active)
+            limitReached -> getString(R.string.break_result_limit_reached)
+            else -> getString(R.string.break_info, store.breaksRemainingToday, store.selectedBreakMinutes)
         }
-        findViewById<Button>(R.id.submitBreakButton).setText(R.string.break_submit_simple)
+        val submitBtn = findViewById<Button>(R.id.submitBreakButton)
+        submitBtn.setText(R.string.break_submit_simple)
+        submitBtn.isEnabled = !store.activeBreak && !limitReached
     }
 
     private fun submit() {
@@ -101,6 +104,11 @@ class BreakActivity : AppCompatActivity() {
         }
         if (store.activeBreak) {
             Toast.makeText(this, R.string.break_info_already_active, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val limitReached = store.breaksRemainingToday <= 0 || store.breaksUsedToday >= store.dailyBreakCap()
+        if (limitReached) {
+            Toast.makeText(this, R.string.break_result_limit_reached, Toast.LENGTH_SHORT).show()
             return
         }
         submitSimple()

@@ -224,13 +224,17 @@ class SessionStore(context: Context) {
         val effectiveActiveBreak = if (keepLocalBreak) true else state.active_break
         val effectiveLocked = if (keepLocalBreak) false else state.locked
 
+        // Local breaks_used_today must never decrease during the same calendar day!
+        val effectiveBreaksUsed = maxOf(breaksUsedToday, state.breaks_used_today)
+        val effectiveBreaksRemaining = (dailyBreakCap() - effectiveBreaksUsed).coerceAtLeast(0)
+
         val edit = prefs.edit()
             .putBoolean(KEY_ENABLED, state.enabled)
             .putBoolean(KEY_LOCKED, effectiveLocked)
             .putBoolean(KEY_HARD_LOCK_ACTIVE, state.hard_lock_active)
             .putInt(KEY_HARD_LOCK_DAYS, state.hard_lock_days_remaining)
-            .putInt(KEY_BREAKS_USED, state.breaks_used_today)
-            .putInt(KEY_BREAKS_REMAINING, state.breaks_remaining_today)
+            .putInt(KEY_BREAKS_USED, effectiveBreaksUsed)
+            .putInt(KEY_BREAKS_REMAINING, effectiveBreaksRemaining)
             .putBoolean(KEY_ACTIVE_BREAK, effectiveActiveBreak)
             .putBoolean(KEY_EMERGENCY_AVAILABLE, state.emergency_available)
             .putLong(KEY_SERVER_BREAK_REMAINING, state.active_break_remaining_ms)
