@@ -44,20 +44,6 @@
                 android:layout_height="wrap_content"
                 android:textColor="@color/text_secondary_light"
                 android:textSize="12sp" />
-
-            <TextView
-                android:id="@+id/permanentBadge"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:background="@drawable/ic_lock_clock"
-                android:paddingHorizontal="6dp"
-                android:paddingVertical="2dp"
-                android:text="@string/badge_permanent_lock"
-                android:textColor="@color/status_locked"
-                android:textSize="10sp"
-                android:textStyle="bold"
-                android:visibility="gone" />
         </LinearLayout>
 
         <com.google.android.material.checkbox.MaterialCheckBox

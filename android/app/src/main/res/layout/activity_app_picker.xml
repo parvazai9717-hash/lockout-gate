@@ -27,6 +27,7 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <!-- Header Panel -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -35,73 +36,36 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-        <!-- Header -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingBottom="16dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-            <ImageView
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:contentDescription="@string/title_manage_apps"
-                android:src="@drawable/ic_shield_lock"
-                app:tint="@color/primary" />
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:contentDescription="@string/title_manage_apps"
+                    android:src="@drawable/ic_shield_lock"
+                    app:tint="@color/primary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:text="@string/title_manage_apps"
+                    android:textColor="@color/text_primary_light"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:text="@string/title_manage_apps"
-                android:textColor="@color/text_primary_light"
-                android:textSize="22sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <!-- Mode Toggle Tabs -->
-        <com.google.android.material.button.MaterialButtonToggleGroup
-            android:id="@+id/modeToggleGroup"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            app:checkedButton="@id/btnStandardMode"
-            app:singleSelection="true">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnStandardMode"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/tab_standard"
-                app:backgroundTint="@color/tab_button_bg"
-                android:textColor="@color/tab_button_content"
-                app:iconTint="@color/tab_button_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/mode_desc_standard"
+                android:textColor="@color/text_secondary_light"
                 android:textSize="13sp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnStrictArea"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/tab_strict_permanent"
-                app:backgroundTint="@color/tab_button_bg"
-                android:textColor="@color/tab_button_content"
-                app:iconTint="@color/tab_button_content"
-                android:textSize="13sp" />
-        </com.google.android.material.button.MaterialButtonToggleGroup>
-
-        <!-- Description Note -->
-        <TextView
-            android:id="@+id/modeDescriptionText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:textColor="@color/text_secondary_light"
-            android:textSize="13sp" />
         </LinearLayout>
 
         <ProgressBar
