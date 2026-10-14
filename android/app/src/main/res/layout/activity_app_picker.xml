@@ -27,7 +27,6 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- Header Panel -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -36,11 +35,13 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- Header -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:paddingBottom="16dp">
 
                 <ImageView
                     android:layout_width="32dp"
@@ -59,11 +60,46 @@
                     android:textStyle="bold" />
             </LinearLayout>
 
-            <TextView
+            <!-- Mode Toggle Tabs -->
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/modeToggleGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/mode_desc_standard"
+                android:layout_marginBottom="12dp"
+                app:checkedButton="@id/btnStandardMode"
+                app:singleSelection="true">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnStandardMode"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/tab_standard"
+                    android:textColor="@color/tab_button_content"
+                    android:textSize="13sp"
+                    app:backgroundTint="@color/tab_button_bg"
+                    app:iconTint="@color/tab_button_content" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnStrictArea"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/tab_strict_permanent"
+                    android:textColor="@color/tab_button_content"
+                    android:textSize="13sp"
+                    app:backgroundTint="@color/tab_button_bg"
+                    app:iconTint="@color/tab_button_content" />
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+
+            <!-- Description Note -->
+            <TextView
+                android:id="@+id/modeDescriptionText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
                 android:textColor="@color/text_secondary_light"
                 android:textSize="13sp" />
         </LinearLayout>
