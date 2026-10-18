@@ -13,6 +13,8 @@ Design rule: the phone may only ever ASK. It cannot grant itself time.
 Run locally:   uvicorn gate:app --host 127.0.0.1 --port 8080
 """
 
+import hmac
+import logging
 import os
 import sqlite3
 import time
@@ -23,6 +25,7 @@ from zoneinfo import ZoneInfo
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
+import focus
 import work
 
 # --------------------------------------------------------------------- config
@@ -35,6 +38,14 @@ LIMIT_MS = int(os.getenv("LOCKOUT_LIMIT_MIN", "30")) * 60_000
 
 app = FastAPI(title="Lockout Gate", docs_url=None, redoc_url=None)
 app.include_router(work.router)
+app.include_router(focus.router)
+
+log = logging.getLogger("lockout")
+
+
+def _same(a: str, b: str) -> bool:
+    """Constant-time comparison so keys can't be guessed byte by byte."""
+    return hmac.compare_digest(a.encode(), b.encode())
 
 # ----------------------------------------------------------------- persistence
 
@@ -61,6 +72,12 @@ def init_db() -> None:
     with closing(db()) as conn, conn:
         conn.executescript(SCHEMA)
     work.init_schema()
+    focus.init_schema()
+    if DEVICE_KEY == "change-me" or ADMIN_KEY == "change-me-too":
+        log.warning(
+            "LOCKOUT_DEVICE_KEY / LOCKOUT_ADMIN_KEY are still the public defaults. "
+            "Anyone who has read this repo can use them — set real values now."
+        )
 
 
 def today() -> str:
@@ -94,7 +111,7 @@ def check(body: CheckIn, x_auth: str = Header(default="")) -> Verdict:
     Returns allowed=False once the day's budget is spent, and keeps returning it
     until the server's own date rolls over or an admin override is in effect.
     """
-    if x_auth != DEVICE_KEY:
+    if not _same(x_auth, DEVICE_KEY):
         raise HTTPException(401, "bad device key")
 
     day = today()
@@ -165,7 +182,7 @@ def override(
     The only escape hatch. Requires ADMIN_KEY, which is deliberately not on the
     phone — so unlocking early means physically going and getting it.
     """
-    if x_admin != ADMIN_KEY:
+    if not _same(x_admin, ADMIN_KEY):
         raise HTTPException(401, "bad admin key")
     if not 1 <= minutes <= 240:
         raise HTTPException(400, "minutes must be 1..240")
@@ -185,7 +202,7 @@ def override(
 @app.get("/v1/status")
 def status(device_id: str, x_admin: str = Header(default="")) -> dict:
     """Read-only introspection. Admin-gated so the phone can't poll its own state."""
-    if x_admin != ADMIN_KEY:
+    if not _same(x_admin, ADMIN_KEY):
         raise HTTPException(401, "bad admin key")
 
     with closing(db()) as conn:

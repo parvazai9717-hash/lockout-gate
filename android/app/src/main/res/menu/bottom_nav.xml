@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_habit"
+        android:icon="@drawable/ic_habit"
+        android:title="@string/tab_habit" />
+    <item
+        android:id="@+id/nav_keep_me_out"
+        android:icon="@drawable/ic_lock"
+        android:title="@string/tab_keep_me_out" />
+</menu>

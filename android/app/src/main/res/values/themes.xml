@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.LockoutGate" parent="Theme.MaterialComponents.DayNight.NoActionBar" />
+    <style name="Theme.LockoutGate" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#2E7D6B</item>
+        <item name="colorPrimaryVariant">#1F5C4E</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#2E7D6B</item>
+    </style>
 
     <!-- Full-screen, no-transition theme for the lock screen so it snaps
          over the blocked app instantly instead of animating in. -->

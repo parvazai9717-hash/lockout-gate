@@ -2,6 +2,9 @@ package com.lockout.gate.state
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.SystemClock
+import android.provider.Settings
+import com.lockout.gate.network.FocusState
 import com.lockout.gate.network.LockState
 
 /**
@@ -10,7 +13,7 @@ import com.lockout.gate.network.LockState
  * on every foreground-app change. Refreshed periodically from the server;
  * the server is always the source of truth, this is just a fast mirror.
  */
-class SessionStore(context: Context) {
+class SessionStore(private val context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("lockout_session", Context.MODE_PRIVATE)
 
@@ -72,6 +75,67 @@ class SessionStore(context: Context) {
         }
     }
 
+    // ------------------------------------------------------------ focus lock
+    // The server owns the end time. We mirror it here so enforcement keeps
+    // working offline. Remaining time is measured on the monotonic clock
+    // (SystemClock.elapsedRealtime), which changing the phone's date can't
+    // move. A reboot resets that clock, so after one we fall back to the
+    // wall-clock end time until the next server sync corrects it.
+
+    private var focusEndsAtWallMs: Long
+        get() = prefs.getLong(KEY_FOCUS_END_WALL, 0L)
+        set(value) = prefs.edit().putLong(KEY_FOCUS_END_WALL, value).apply()
+
+    private var focusEndElapsedMs: Long
+        get() = prefs.getLong(KEY_FOCUS_END_ELAPSED, 0L)
+        set(value) = prefs.edit().putLong(KEY_FOCUS_END_ELAPSED, value).apply()
+
+    private var focusBootCount: Int
+        get() = prefs.getInt(KEY_FOCUS_BOOT, -1)
+        set(value) = prefs.edit().putInt(KEY_FOCUS_BOOT, value).apply()
+
+    private fun bootCount(): Int = try {
+        Settings.Global.getInt(context.contentResolver, "boot_count", -1)
+    } catch (e: Exception) {
+        -1
+    }
+
+    /** Milliseconds of focus lock left (0 when none). */
+    fun focusRemainingMs(): Long {
+        val wallEnd = focusEndsAtWallMs
+        if (wallEnd == 0L) return 0L
+        return if (bootCount() == focusBootCount) {
+            (focusEndElapsedMs - SystemClock.elapsedRealtime()).coerceAtLeast(0L)
+        } else {
+            (wallEnd - System.currentTimeMillis()).coerceAtLeast(0L)
+        }
+    }
+
+    fun focusActive(): Boolean = focusRemainingMs() > 0L
+
+    /** Wall-clock end time, for display only. */
+    fun focusEndsAtWall(): Long = focusEndsAtWallMs
+
+    fun updateFocus(state: FocusState) {
+        if (!state.active || state.remaining_s <= 0L) {
+            clearFocus()
+            return
+        }
+        val remainingMs = state.remaining_s * 1000L
+        prefs.edit()
+            .putLong(KEY_FOCUS_END_WALL, System.currentTimeMillis() + remainingMs)
+            .putLong(KEY_FOCUS_END_ELAPSED, SystemClock.elapsedRealtime() + remainingMs)
+            .putInt(KEY_FOCUS_BOOT, bootCount())
+            .apply()
+    }
+
+    fun clearFocus() {
+        prefs.edit()
+            .putLong(KEY_FOCUS_END_WALL, 0L)
+            .putLong(KEY_FOCUS_END_ELAPSED, 0L)
+            .apply()
+    }
+
     /** True when an entertainment app should currently be blocked. */
     fun isLocked(): Boolean = locked
 
@@ -85,5 +149,8 @@ class SessionStore(context: Context) {
         private const val KEY_ACTIVE_BREAK = "active_break"
         private const val KEY_EMERGENCY_AVAILABLE = "emergency_available"
         private const val KEY_USAGE_CHECKPOINT = "usage_checkpoint_ms"
+        private const val KEY_FOCUS_END_WALL = "focus_end_wall_ms"
+        private const val KEY_FOCUS_END_ELAPSED = "focus_end_elapsed_ms"
+        private const val KEY_FOCUS_BOOT = "focus_boot_count"
     }
 }

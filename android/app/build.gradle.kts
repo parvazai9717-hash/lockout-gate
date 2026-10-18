@@ -1,7 +1,18 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
+
+// Secrets live in android/local.properties (gitignored), never in source.
+// See local.properties.example.
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
+fun secret(name: String): String = (localProps.getProperty(name) ?: System.getenv(name) ?: "").trim()
 
 android {
     namespace = "com.lockout.gate"
@@ -11,16 +22,22 @@ android {
         applicationId = "com.lockout.gate"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
 
-        // Same secret as the server's LOCKOUT_DEVICE_KEY env var, and the
-        // server's base URL. Edit these for your own deployment before
-        // building — see Config.kt for the single source of truth used at
-        // runtime (these just seed its defaults).
-        // Must end with a trailing slash — Retrofit requires it.
-        buildConfigField("String", "SERVER_BASE_URL", "\"https://lockout-gate-lockout-gate.qt5ga9.easypanel.host/\"")
-        buildConfigField("String", "DEVICE_KEY", "\"97931aeac1fe752665cf6ffb950e31e48fde30234bd44e64\"")
+        // The server URL and the device key (same value as the server's
+        // LOCKOUT_DEVICE_KEY env var) come from android/local.properties.
+        var baseUrl = secret("LOCKOUT_SERVER_BASE_URL")
+        val deviceKey = secret("LOCKOUT_DEVICE_KEY")
+        if (baseUrl.isBlank() || deviceKey.isBlank()) {
+            throw GradleException(
+                "Set LOCKOUT_SERVER_BASE_URL and LOCKOUT_DEVICE_KEY in android/local.properties " +
+                    "(copy local.properties.example)."
+            )
+        }
+        if (!baseUrl.endsWith("/")) baseUrl += "/" // Retrofit requires a trailing slash
+        buildConfigField("String", "SERVER_BASE_URL", "\"$baseUrl\"")
+        buildConfigField("String", "DEVICE_KEY", "\"$deviceKey\"")
     }
 
     buildTypes {

@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
 import android.text.InputType
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -27,6 +28,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var store: SessionStore
     private lateinit var statusText: TextView
+    private lateinit var focusTab: FocusTabController
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,12 +49,31 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
         }
 
+        focusTab = FocusTabController(this, findViewById(R.id.focusTab), store)
+
+        val habitTab = findViewById<View>(R.id.habitTab)
+        val focusTabView = findViewById<View>(R.id.focusTab)
+        findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(R.id.bottomNav)
+            .setOnItemSelectedListener { item ->
+                val showFocus = item.itemId == R.id.nav_keep_me_out
+                habitTab.visibility = if (showFocus) View.GONE else View.VISIBLE
+                focusTabView.visibility = if (showFocus) View.VISIBLE else View.GONE
+                if (showFocus) focusTab.refresh()
+                true
+            }
+
         renderStatus()
     }
 
     override fun onResume() {
         super.onResume()
+        // A running focus lock owns the screen: send us straight to it.
+        if (store.focusActive()) {
+            startActivity(Intent(this, FocusLockActivity::class.java))
+            return
+        }
         refreshFromServer()
+        focusTab.refresh()
     }
 
     private fun renderStatus() {

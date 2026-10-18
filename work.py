@@ -26,6 +26,7 @@ walking away and coming back later doesn't burn it down.
     POST /v1/lock/emergency/enable  — turn blocking back on (unlimited).
 """
 
+import hmac
 import os
 import sqlite3
 import time
@@ -36,6 +37,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from pydantic import BaseModel
 
+import focus
 import gemini_verify
 
 router = APIRouter()
@@ -96,7 +98,7 @@ def init_schema() -> None:
 
 
 def _check_auth(x_auth: str) -> None:
-    if x_auth != DEVICE_KEY:
+    if not hmac.compare_digest(x_auth.encode(), DEVICE_KEY.encode()):
         raise HTTPException(401, "bad device key")
 
 
@@ -206,6 +208,8 @@ def lock_state(device_id: str, x_auth: str = Header(default="")) -> LockState:
 def break_start(body: DeviceRequest, x_auth: str = Header(default="")) -> LockState:
     """Start a normal-mode break — no photo needed. Rejected during a hard lock."""
     _check_auth(x_auth)
+    if focus.focus_active(body.device_id):
+        raise HTTPException(423, "focus lock is active — no breaks until it ends")
     with closing(db()) as conn, conn:
         row = _get_or_create_lock_row(conn, body.device_id)
         if not row["enabled"]:
@@ -237,6 +241,8 @@ async def break_claim(
 ) -> BreakClaimResult:
     """Start a hard-lock break — requires a Gemini-verified eating photo."""
     _check_auth(x_auth)
+    if focus.focus_active(device_id):
+        raise HTTPException(423, "focus lock is active — no breaks until it ends")
 
     with closing(db()) as conn:
         row = _get_or_create_lock_row(conn, device_id)
@@ -365,7 +371,6 @@ def emergency_enable(body: DeviceRequest, x_auth: str = Header(default="")) -> L
             """
             UPDATE lock_state SET
                 enabled = 1,
-                hard_lock_until = NULL,
                 active_break_started_at = NULL,
                 active_break_used_ms = 0
             WHERE device_id = ?

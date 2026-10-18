@@ -1,0 +1,4 @@
+## Copy the lines below into android/local.properties (that file is gitignored).
+## Android Studio already puts sdk.dir in there — leave it.
+LOCKOUT_SERVER_BASE_URL=https://your-server.example.com/
+LOCKOUT_DEVICE_KEY=the-same-value-as-LOCKOUT_DEVICE_KEY-on-the-server

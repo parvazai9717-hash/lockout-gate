@@ -39,6 +39,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var store: SessionStore
     private var lastForegroundPackage: String? = null
+    private var lastFocusLaunchAt = 0L
 
     private val refreshRunnable = object : Runnable {
         override fun run() {
@@ -59,6 +60,16 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             lastForegroundPackage = pkg
+
+            // Keep Me Out outranks everything: during a focus lock only calls
+            // and WhatsApp (see FocusPolicy) may be on screen. Settings and the
+            // installer aren't allowed either, so the service can't be switched
+            // off or the app uninstalled from the phone while it runs.
+            if (store.focusActive()) {
+                if (!FocusPolicy.isAllowed(this, pkg)) showFocusLock()
+                return
+            }
+
             if (pkg in Config.ENTERTAINMENT_PACKAGES && store.isLocked()) {
                 blockNow()
                 return
@@ -68,6 +79,17 @@ class AppBlockAccessibilityService : AccessibilityService() {
         if (pkg in Config.SELF_PROTECT_PACKAGES) {
             checkSelfProtection(pkg)
         }
+    }
+
+    /** Brings the Keep Me Out screen to the front (debounced so it can't thrash). */
+    private fun showFocusLock() {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - lastFocusLaunchAt < 400L) return
+        lastFocusLaunchAt = now
+        val intent = Intent(this, FocusLockActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        startActivity(intent)
     }
 
     private fun blockNow() {
@@ -137,6 +159,22 @@ class AppBlockAccessibilityService : AccessibilityService() {
      */
     private fun refreshAndReport() {
         scope.launch {
+            // Focus lock first: the server's end time is the only one that counts.
+            try {
+                val resp = ApiClient.api.focusState(Config.DEVICE_KEY, Config.DEVICE_ID)
+                val body = resp.body()
+                if (resp.isSuccessful && body != null) store.updateFocus(body)
+            } catch (e: Exception) {
+                // Offline — keep enforcing the cached end time.
+            }
+            val focusFg = lastForegroundPackage
+            if (store.focusActive()) {
+                if (focusFg != null && !FocusPolicy.isAllowed(this@AppBlockAccessibilityService, focusFg)) {
+                    handler.post { showFocusLock() }
+                }
+                return@launch // no break accounting while the focus lock is running
+            }
+
             try {
                 if (store.activeBreak && UsageTracker.hasUsageAccess(applicationContext)) {
                     val now = System.currentTimeMillis()

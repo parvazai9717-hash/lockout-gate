@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Lockout Gate</string>
-    <string name="accessibility_service_description">Watches which app is in the foreground so Lockout Gate can block time-wasting apps unless a break is active. Also protects itself: reads on-screen text only within Settings and the Package Installer, to detect and bounce out of attempts to disable this service or uninstall this app from the phone (use a PC with ADB instead).</string>
+    <string name="accessibility_service_description">Watches which app is in the foreground so Lockout Gate can block time-wasting apps unless a break is active, and keeps the phone limited to calls and WhatsApp during a Keep Me Out focus lock. Also protects itself: reads on-screen text only within Settings and the Package Installer, to detect and bounce out of attempts to disable this service or uninstall this app from the phone (use a PC with ADB instead).</string>
 
     <string name="status_normal">Normal mode.</string>
     <string name="status_hard_lock">Hard lock active — %1$d day(s) remaining.</string>
@@ -43,4 +43,47 @@
     <string name="block_message">Blocked. Take a break to unlock, or go back.</string>
     <string name="block_eating_break">Take a break</string>
     <string name="block_back_to_work">Back to home screen</string>
+
+    <!-- Tabs -->
+    <string name="tab_habit">Habit</string>
+    <string name="tab_keep_me_out">Keep Me Out</string>
+
+    <!-- Keep Me Out tab -->
+    <string name="focus_subtitle">Lock your phone down to calls and WhatsApp for as long as you choose.</string>
+    <string name="focus_status_idle">Not locked. Pick a duration below.</string>
+    <string name="focus_status_active">Locked until %1$s.</string>
+    <string name="focus_setup_needed">Turn on the blocking service first — without it the lock can\'t be enforced.</string>
+    <string name="focus_presets_label">Quick presets</string>
+    <string name="focus_custom_label">Or set your own time</string>
+    <string name="focus_custom_hint">Amount</string>
+    <string name="unit_minutes">Minutes</string>
+    <string name="unit_hours">Hours</string>
+    <string name="unit_days">Days</string>
+    <string name="focus_start">Lock me out</string>
+    <string name="focus_footnote">Only the server can end a lock early, and only with your admin key. Breaks and the emergency switch don\'t work during a focus lock.</string>
+    <string name="focus_pick_duration">Pick a duration first.</string>
+    <string name="focus_too_long">That\'s longer than the 60-day maximum.</string>
+    <string name="focus_confirm_title">Lock your phone?</string>
+    <string name="focus_confirm_message">Until %1$s you\'ll only be able to use Phone and WhatsApp. Ending early needs your admin key.</string>
+    <string name="focus_confirm_yes">Lock me out</string>
+    <string name="focus_start_failed">Could not start the lock (server error).</string>
+    <string name="focus_start_offline">Can\'t reach the server. A lock has to start on the server\'s clock, so connect and try again.</string>
+
+    <!-- Lock screen -->
+    <string name="focus_lock_title">Keep Me Out</string>
+    <string name="focus_lock_until">Until %1$s</string>
+    <string name="focus_phone">Phone</string>
+    <string name="focus_whatsapp">WhatsApp</string>
+    <string name="focus_whatsapp_missing">WhatsApp isn\'t installed.</string>
+    <string name="focus_end_early">End early (admin key)</string>
+    <string name="focus_end_title">End the lock early</string>
+    <string name="focus_end_message">Enter your admin key. It isn\'t saved on this phone.</string>
+    <string name="focus_admin_key_hint">Admin key</string>
+    <string name="focus_end_confirm">End lock</string>
+    <string name="focus_end_wrong_key">Wrong admin key.</string>
+    <string name="focus_end_throttled">Too many wrong keys. Try again in a few minutes.</string>
+    <string name="focus_end_server_error">Server error — the lock is still on.</string>
+    <string name="focus_end_offline">Can\'t reach the server — the lock is still on.</string>
+    <string name="focus_finished">Focus lock finished.</string>
 </resources>
+

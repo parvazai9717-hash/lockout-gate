@@ -38,6 +38,15 @@
             android:showWhenLocked="true"
             android:theme="@style/Theme.LockoutGate.Block" />
 
+        <!-- Keep Me Out: what's left on screen during a focus lock. -->
+        <activity
+            android:name=".FocusLockActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:showWhenLocked="true"
+            android:theme="@style/Theme.LockoutGate.Block" />
+
         <service
             android:name=".AppBlockAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"

@@ -45,6 +45,16 @@ data class BreakClaimResponse(
     )
 }
 
+data class FocusStartRequest(val device_id: String, val minutes: Int)
+data class FocusEndRequest(val device_id: String)
+data class FocusState(
+    val active: Boolean,
+    val started_at: Long,
+    val ends_at: Long,
+    val remaining_s: Long,
+    val server_now: Long,
+)
+
 data class CheckRequest(val device_id: String, val used_ms: Long)
 data class CheckResponse(val allowed: Boolean, val reason: String, val used_ms: Long, val remaining_ms: Long)
 
@@ -92,6 +102,26 @@ interface LockoutApi {
         @Header("X-Auth") auth: String,
         @Body body: DeviceRequest,
     ): Response<LockState>
+
+    @GET("/v1/focus/state")
+    suspend fun focusState(
+        @Header("X-Auth") auth: String,
+        @Query("device_id") deviceId: String,
+    ): Response<FocusState>
+
+    @POST("/v1/focus/start")
+    suspend fun startFocus(
+        @Header("X-Auth") auth: String,
+        @Body body: FocusStartRequest,
+    ): Response<FocusState>
+
+    /** Early exit. [admin] is typed by the user each time and never stored. */
+    @POST("/v1/focus/end")
+    suspend fun endFocus(
+        @Header("X-Auth") auth: String,
+        @Header("X-Admin") admin: String,
+        @Body body: FocusEndRequest,
+    ): Response<FocusState>
 
     @POST("/v1/check")
     suspend fun check(
