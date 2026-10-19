@@ -100,14 +100,26 @@ class SessionStore(private val context: Context) {
         -1
     }
 
-    /** Milliseconds of focus lock left (0 when none). */
+    /**
+     * Milliseconds of focus lock left (0 when none).
+     *
+     * Normally measured on the monotonic clock, which moving the phone's date
+     * can't affect. After a reboot that clock restarts, so:
+     *  - if the phone exposes a boot counter we can tell, and use the wall clock;
+     *  - if it doesn't, we can't tell, so we take the LONGER of the two readings.
+     *    Moving the date backwards can then only make the lock look longer, never
+     *    shorter, and the next server sync (every ~15s online) corrects it.
+     */
     fun focusRemainingMs(): Long {
         val wallEnd = focusEndsAtWallMs
         if (wallEnd == 0L) return 0L
-        return if (bootCount() == focusBootCount) {
-            (focusEndElapsedMs - SystemClock.elapsedRealtime()).coerceAtLeast(0L)
-        } else {
-            (wallEnd - System.currentTimeMillis()).coerceAtLeast(0L)
+        val byWall = (wallEnd - System.currentTimeMillis()).coerceAtLeast(0L)
+        val byElapsed = (focusEndElapsedMs - SystemClock.elapsedRealtime()).coerceAtLeast(0L)
+        val boot = bootCount()
+        return when {
+            boot != -1 && boot == focusBootCount -> byElapsed
+            boot != -1 -> byWall // rebooted since the lock was synced
+            else -> maxOf(byElapsed, byWall)
         }
     }
 
