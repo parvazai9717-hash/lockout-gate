@@ -96,7 +96,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
                 lastForegroundPackage = pkg
                 if (pkg in store.getAllBlockedPackages() && store.isLocked()) {
-                    blockNow()
+                    blockNow(pkg)
                     return
                 }
             }
@@ -107,7 +107,10 @@ class AppBlockAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun blockNow() {
+    private fun blockNow(expectedPackage: String) {
+        // A queued timer must not cover a different app or override a user's pause.
+        if (!isScreenInteractive || lastForegroundPackage != expectedPackage ||
+            !store.isLocked() || expectedPackage !in store.getAllBlockedPackages()) return
         val now = SystemClock.elapsedRealtime()
         if (now-lastBlockAt < 1_000L) return
         lastBlockAt = now
@@ -217,7 +220,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
                     checkPreBlockWarnings(store.breakRemainingMs)
                 } else cancelBreakNotification()
                 val fg = lastForegroundPackage
-                if (fg != null && fg in store.getAllBlockedPackages() && store.isLocked()) handler.post { blockNow() }
+                if (fg != null && fg in store.getAllBlockedPackages() && store.isLocked()) handler.post { blockNow(fg) }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
