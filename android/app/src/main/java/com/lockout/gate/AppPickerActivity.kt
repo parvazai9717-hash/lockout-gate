@@ -135,15 +135,8 @@ class AppPickerActivity : BaseActivity() {
 
             if (isStrictLocked) {
                 holder.checkBox.isChecked = true
-                holder.checkBox.isEnabled = true
+                holder.checkBox.isEnabled = false
                 holder.badgeView.visibility = View.VISIBLE
-                holder.checkBox.setOnCheckedChangeListener { _, checked ->
-                    if (!checked) {
-                        store.strictBlockedPackages = store.strictBlockedPackages - pkg
-                        val currentPosition = holder.adapterPosition
-                        if (currentPosition != RecyclerView.NO_POSITION) notifyItemChanged(currentPosition)
-                    }
-                }
             } else if (!isStrictMode) {
                 holder.badgeView.visibility = View.GONE
                 holder.checkBox.isChecked = isStandardBlocked

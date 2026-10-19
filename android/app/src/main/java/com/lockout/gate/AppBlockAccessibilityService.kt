@@ -17,6 +17,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.lockout.gate.state.SessionStore
+import com.lockout.gate.network.FocusClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -37,6 +38,9 @@ class AppBlockAccessibilityService : AccessibilityService() {
     private var receiverRegistered = false
     private var refreshJob: Job? = null
     private var lastBlockAt = 0L
+    private var lastFocusLaunchAt = 0L
+    private var lastFocusSyncAt = -60_000L
+    private var focusSyncJob: Job? = null
 
     private val screenStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -95,6 +99,10 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
                 lastForegroundPackage = pkg
+                if (store.focusActive()) {
+                    if (!FocusPolicy.isAllowed(this,pkg)) showFocusLock(pkg)
+                    return
+                }
                 if (pkg in store.getAllBlockedPackages() && store.isLocked()) {
                     blockNow(pkg)
                     return
@@ -121,6 +129,13 @@ class AppBlockAccessibilityService : AccessibilityService() {
         startActivity(intent)
     }
 
+    private fun showFocusLock(expectedPackage:String) {
+        if (!isScreenInteractive || lastForegroundPackage != expectedPackage || !store.focusActive() || FocusPolicy.isAllowed(this,expectedPackage)) return
+        val now=SystemClock.elapsedRealtime()
+        if (now-lastFocusLaunchAt < 1000) return
+        lastFocusLaunchAt=now
+        startActivity(Intent(this,FocusLockActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP))
+    }
     override fun onInterrupt() {}
 
     override fun onDestroy() {
@@ -200,9 +215,26 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
     /** Account selected-app usage locally; keep one measurement in flight. */
     private fun refreshAndReport() {
+        val elapsed=SystemClock.elapsedRealtime()
+        if (FocusClient.configured && focusSyncJob?.isActive != true && elapsed-lastFocusSyncAt >= 30_000L) {
+            lastFocusSyncAt=elapsed
+            focusSyncJob=scope.launch {
+                try {
+                    val response=FocusClient.api.focusState(Config.DEVICE_KEY,store.focusDeviceId)
+                    if (response.isSuccessful) response.body()?.let { store.updateFocus(it) }
+                } catch (e:kotlinx.coroutines.CancellationException) { throw e }
+                catch (_:Exception) { /* Cached focus time works offline; ordinary breaks stay responsive. */ }
+            }
+        }
         if (refreshJob?.isActive == true) return
         refreshJob = scope.launch {
             try {
+                if (store.focusActive()) {
+                    cancelBreakNotification()
+                    val foreground=lastForegroundPackage
+                    if (foreground != null) handler.post { showFocusLock(foreground) }
+                    return@launch
+                }
                 if (store.activeBreak) {
                     val breakId = store.breakId
                     val now = System.currentTimeMillis()

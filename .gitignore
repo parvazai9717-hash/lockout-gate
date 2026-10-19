@@ -17,3 +17,7 @@ android/*.iml
 android/app/*.iml
 android/captures/
 android/.cxx/
+
+# Accidental nested checkout; preserve it locally, never commit it as a submodule.
+/lockout-gate/
+.pytest_cache/

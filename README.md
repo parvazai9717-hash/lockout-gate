@@ -1,29 +1,25 @@
-# Lockout Gate — Android release candidate
-A private, on-device focus and habit app. This branch starts from the Android Studio branch `claude/ai-work-accountability-agent-ork10y`, not the old `main` prototype.
+# Lockout Gate
 
-## Public v1 decisions
-- Free and ad-free launch. No account, purchases, remote AI, telemetry or server calls.
-- Select launchable apps, start measured usage breaks, opt into a one-break-per-day hard-lock period, keep a daily habit checklist, and choose a local background image.
-- Users can always pause protection, change their app list, disable permissions and uninstall. This is self-control software, not a security boundary or parental-control product.
-- Settings, the launcher, the default dialer and this app are protected from selection/enforcement.
-- Break budget is fixed at the moment a break starts. One device owns its local quota. Uninstalling or clearing storage deletes it; do not claim reinstall resistance.
-- No photo verification exists in the Android release. Root Python files are the legacy personal backend, retained for reference only. **Do not deploy them for this release.**
+The canonical project is this repository root, branch **main** after integration. Open **android/** in Android Studio. Do not open the nested lockout-gate folder. Historical branches are retained as archive tags when consolidated; ongoing work belongs on main or a short-lived reviewed change branch.
 
-## Build
-Use JDK 17 or 21 and the Android SDK platform 36. Open `android/` in Android Studio or use its Gradle wrapper. Put only `sdk.dir=...` in the ignored `android/local.properties`; no server URL or credential is needed.
+## Product rules
+- Three tabs: Lockout, Habits, Keep Me Out.
+- Protection can be paused twice per calendar month. Resume does not refund a pause. A pause remains active until resumed; this is an emergency allowance, not an extra timed break.
+- Standard selections are editable. Permanent selections cannot be unchecked after confirmation. This is permanence inside the app, not a claim to prevent Android storage clearing or uninstall.
+- Ordinary breaks count real foreground use. Their budget is fixed when they start.
+- Keep Me Out restricts the phone to calls, WhatsApp and essential system functions for a chosen duration. It uses server time, caches a monotonic countdown offline, and requires the server admin key to end early. Pauses and breaks cannot cancel it.
+- Settings and emergency communication stay available. No screen-text retrieval, uninstall interference, ads, purchases or remote AI are included in the Android preview.
 
-```text
-cd android
-./gradlew testDebugUnitTest lintDebug assembleDebug bundleRelease assembleDebugAndroidTest
-```
+## Build and run
+Use Android SDK 36 and JDK 21 (17 also builds in CI). The checked wrapper uses Gradle 8.11.1. Open android/ in Android Studio, Sync, select the app run configuration and the connected Samsung, then press Run. Debug installs as **Lockout Gate Preview** alongside the original app.
 
-The debug app is `com.lockout.gate.preview`, labelled **Lockout Gate Preview**, so it does not replace the owner's installed personal app. The release identity remains `com.lockout.gate`. Release bundles are unsigned unless you configure an upload key; see `docs/PLAY_RELEASE.md`.
+Ignored android/local.properties holds sdk.dir, LOCKOUT_SERVER_BASE_URL (HTTPS) and LOCKOUT_DEVICE_KEY for the personal preview. No public fallback key is permitted. An optional LOCKOUT_FOCUS_DEVICE_ID is for controlled migrations only; normally each install creates its own identifier and secret. Never put LOCKOUT_ADMIN_KEY on the phone.
 
-## Test evidence
-See `docs/VALIDATION.md` for what actually passed and what still needs tester feedback. A build or unit test is not proof of battery life, OEM background reliability or Google Play approval.
+Build checks: `cd android` then `./gradlew testDebugUnitTest lintDebug assembleDebug bundleRelease assembleDebugAndroidTest`. Server checks: install requirements.txt and requirements-dev.txt in an isolated Python environment, then `python -m pytest tests -q`.
 
-## Privacy
-Read `docs/PRIVACY_POLICY.md` and the app's **Privacy & Help** page. A publicly hosted privacy-policy URL and the Play Console declarations must match the exact final signed build.
+## Server and public launch
+The root Dockerfile now includes focus.py and preserves the legacy API. Keep Me Out requires deploying this server code; an old deployment returns 404 for /v1/focus/state. Persist /var/lib/lockout, preserve the existing database and configure device/admin keys outside Git. Read docs/EASYPANEL.md.
 
-## Project coordination
-This candidate was prepared in an isolated checkout to preserve the Studio agent's work. Review and reconcile any later changes before merging. Do not auto-deploy the legacy VPS backend from this candidate. Existing production services were not changed.
+This is a **personal-server preview**, not a completed public Play release. The shared server/master-admin arrangement needs user-owned provisioning and recovery before public launch. A device-key fallback was committed in an earlier Gemini change: remove the fallback and rotate that credential before public distribution. Never distribute a personal keyed APK as the public release.
+
+Read AGENTS.md before changing product behavior. See docs/VALIDATION.md for actual test evidence and remaining manual checks. A prior offline-only preview missed Keep Me Out and weakened the strict controls; those earlier release assumptions are superseded.

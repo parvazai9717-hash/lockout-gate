@@ -76,4 +76,35 @@ class SessionStoreTest {
         assertEquals(0,store.breaksUsedToday); assertEquals(1_234L,store.cumulativeBreakUsageMs)
         assertTrue(store.activeBreak)
     }
+    @Test fun onlyTwoPausesPerMonthAndResumeDoesNotRefund() {
+        val store=SessionStore(context)
+        repeat(2) { assertTrue(store.setProtection(false)); assertTrue(store.setProtection(true)) }
+        assertFalse(store.setProtection(false)); assertEquals(0,SessionStore(context).pausesRemainingThisMonth)
+        assertTrue(store.enabled)
+    }
+    @Test fun newMonthResetsPausesButBackwardMonthDoesNot() {
+        val store=SessionStore(context)
+        val month=java.time.YearMonth.now()
+        prefs.edit().putString("pause_month",month.minusMonths(1).toString()).putInt("pauses_used",2).commit()
+        assertEquals(2,store.pausesRemainingThisMonth)
+        prefs.edit().putString("pause_month",month.plusMonths(1).toString()).putInt("pauses_used",2).commit()
+        assertEquals(0,store.pausesRemainingThisMonth)
+    }
+    @Test fun permanentSelectionsCannotBeRemovedByAnotherStore() {
+        val first=SessionStore(context);first.strictBlockedPackages=setOf("example.social")
+        SessionStore(context).strictBlockedPackages=emptySet()
+        assertEquals(setOf("example.social"),first.strictBlockedPackages)
+    }
+    @Test fun focusBlocksBreaksAndEmergencyPausesAndSurvivesRecreation() {
+        val store=SessionStore(context)
+        store.updateFocus(com.lockout.gate.network.FocusState(true,10,70,60,10))
+        assertTrue(SessionStore(context).focusActive());assertFalse(store.startBreakLocally())
+        assertFalse(store.setProtection(false));assertEquals(2,store.pausesRemainingThisMonth)
+    }
+    @Test fun staleIdleResponseCannotClearNewFocus() {
+        val store=SessionStore(context)
+        store.updateFocus(com.lockout.gate.network.FocusState(true,10,70,60,10))
+        store.updateFocus(com.lockout.gate.network.FocusState(false,0,0,0,10));assertTrue(store.focusActive())
+        store.updateFocus(com.lockout.gate.network.FocusState(false,0,0,0,10),allowEarlyEnd=true);assertFalse(store.focusActive())
+    }
 }

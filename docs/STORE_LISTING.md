@@ -1,38 +1,11 @@
-# Store listing draft
-App name: Lockout Gate: Focus & Habits
-Short description: Choose distracting apps, take mindful breaks, and build daily habits.
+# Store copy - corrected draft
+Title: Lockout Gate: Focus & Habits
+Short description: Block distractions, build habits, and choose a stricter focus session.
 
-Full description:
+Choose distracting apps in Standard Mode, or confirm Permanent Mode selections that cannot be unchecked inside the app. Take measured breaks and keep a daily habit checklist. Two emergency protection pauses are available each calendar month; resuming does not return a used pause.
 
-Make room for what you meant to do.
+Keep Me Out limits the phone to calls, WhatsApp and essential system functions for a selected duration. It uses a server for timing and admin-key early exit. Explain the final user setup/recovery flow before publishing this listing. Never promise impossible-to-disable protection; Android Settings and uninstall remain available.
 
-Lockout Gate helps you choose which apps to step away from, take measured breaks, and keep a simple daily habit checklist.
+The planned launch is free and ad-free. Premium is a later optional update, not an automatic charge. No photo verification or remote AI is in the Android app. Local habits/background pictures stay on the phone; Keep Me Out transmits the lock requests described in the privacy policy.
 
-CHOOSE YOUR DISTRACTIONS
-Select the apps you want to block. Your launcher, settings and default dialer stay available. Nothing is selected for you on a fresh install.
-
-BREAKS THAT COUNT APP USAGE
-Choose a break length and spend that time in your selected apps. Time with the screen off does not count toward the usage budget. Optional notifications show the remaining budget.
-
-BUILD YOUR ROUTINE
-Add personal habits, tick off completed days, and explore your monthly progress.
-
-YOUR PHONE, YOUR CONTROL
-Pause protection, change your selections, disable permissions or uninstall whenever you choose. Hard-lock periods reduce your daily break allowance; they do not prevent you controlling your device.
-
-PRIVATE BY DESIGN
-This launch version works on your phone without an account, advertisements, payments, remote AI or a server connection. Habits and app selections stay in private local storage. Clearing app storage or uninstalling deletes that local data.
-
-PERMISSIONS EXPLAINED
-Accessibility detects the foreground app and displays your chosen block screen. It does not retrieve screen text or messages. Usage Access measures time spent in selected apps. Notifications are optional. Lockout Gate explains these permissions before setup.
-
-A self-control aid, not a security product. Android battery management and device manufacturers can affect background behavior. Keep essential communication available.
-
-Support: parvazai9717@gmail.com
-
-## Graphics to produce after visual/device validation
-- 512×512 store icon adapted from the existing vector logo.
-- 1024×500 feature graphic: “More focus. Better habits.”
-- 4–6 real phone screenshots: app selection, protection state, break duration, habits, monthly progress, privacy/control.
-- Show the actual shipped UI. No fabricated ratings, user counts, medical claims, “unbreakable” locks or guaranteed productivity.
-- Use official Google Play badges only after there is an approved public listing.
+This is draft copy, not an approved listing. Finish public authentication/recovery, Data safety, Accessibility declarations, screenshots, signing and closed testing before submission. Existing icon/feature graphic can be reviewed for use; replace earlier screenshots with the corrected three-tab app.

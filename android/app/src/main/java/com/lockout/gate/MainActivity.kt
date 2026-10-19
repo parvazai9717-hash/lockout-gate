@@ -39,6 +39,8 @@ class MainActivity : BaseActivity() {
     private lateinit var habitController: HabitTrackerController
     private lateinit var lockoutScroll: View
     private lateinit var habitsScroll: View
+    private lateinit var focusView: View
+    private lateinit var focusController: FocusTabController
 
     private val pickBackgroundMedia = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) lifecycleScope.launch {
@@ -68,12 +70,14 @@ class MainActivity : BaseActivity() {
         lockoutScroll = findViewById(R.id.lockoutScroll)
         habitsScroll = findViewById(R.id.habitsScroll)
         habitController = HabitTrackerController(this, habitsScroll)
+        focusView = findViewById(R.id.focusTab)
+        focusController = FocusTabController(this,focusView,store)
 
         val tabGroup = findViewById<MaterialButtonToggleGroup>(R.id.mainTabGroup)
-        tabGroup.check(if (store.lastSelectedTab == TAB_HABITS) R.id.tabHabitsButton else R.id.tabLockoutButton)
+        tabGroup.check(when(store.lastSelectedTab) { TAB_HABITS -> R.id.tabHabitsButton; TAB_FOCUS -> R.id.tabFocusButton; else -> R.id.tabLockoutButton })
         showTab(store.lastSelectedTab)
         tabGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
-            if (isChecked) showTab(if (checkedId == R.id.tabHabitsButton) TAB_HABITS else TAB_LOCKOUT)
+            if (isChecked) showTab(when(checkedId) { R.id.tabHabitsButton -> TAB_HABITS; R.id.tabFocusButton -> TAB_FOCUS; else -> TAB_LOCKOUT })
         }
 
         findViewById<Button>(R.id.manageAppsButton).setOnClickListener {
@@ -113,6 +117,7 @@ class MainActivity : BaseActivity() {
         applyBackground()
         renderStatus()
         habitController.render()
+        if (store.focusActive()) startActivity(Intent(this,FocusLockActivity::class.java))
     }
 
     override fun onPause() {
@@ -124,7 +129,9 @@ class MainActivity : BaseActivity() {
         store.lastSelectedTab = tab
         lockoutScroll.visibility = if (tab == TAB_LOCKOUT) View.VISIBLE else View.GONE
         habitsScroll.visibility = if (tab == TAB_HABITS) View.VISIBLE else View.GONE
+        focusView.visibility = if (tab == TAB_FOCUS) View.VISIBLE else View.GONE
         if (tab == TAB_HABITS) habitController.render()
+        if (tab == TAB_FOCUS) focusController.refresh()
     }
 
     private fun maybeRequestNotificationPermission() {
@@ -202,6 +209,10 @@ class MainActivity : BaseActivity() {
         findViewById<Button>(R.id.emergencyButton).setText(
             if (store.enabled) R.string.emergency_disable else R.string.emergency_enable,
         )
+        findViewById<Button>(R.id.emergencyButton).apply {
+            isEnabled = !store.focusActive() && (!store.enabled || store.pausesRemainingThisMonth > 0)
+            if (store.enabled) text = getString(R.string.pause_allowance,store.pausesRemainingThisMonth)
+        }
         findViewById<Button>(R.id.hardLockButton).isEnabled = store.enabled && !store.hardLockActive
 
         findViewById<Button>(R.id.enableAccessibilityButton).setText(
@@ -257,8 +268,11 @@ class MainActivity : BaseActivity() {
         if (!store.enabled) { store.setProtection(true); renderStatus(); return }
         AlertDialog.Builder(this)
             .setTitle(R.string.emergency_confirm_title)
-            .setMessage(R.string.emergency_confirm_message)
-            .setPositiveButton(R.string.emergency_confirm_yes) { _, _ -> store.setProtection(false); renderStatus() }
+            .setMessage(getString(R.string.emergency_confirm_message,store.pausesRemainingThisMonth))
+            .setPositiveButton(R.string.emergency_confirm_yes) { _, _ ->
+                if (!store.setProtection(false)) toast(getString(R.string.pause_exhausted))
+                renderStatus()
+            }
             .setNegativeButton(android.R.string.cancel, null).show()
     }
 
@@ -269,6 +283,7 @@ class MainActivity : BaseActivity() {
     companion object {
         private const val TAB_LOCKOUT = 0
         private const val TAB_HABITS = 1
+        private const val TAB_FOCUS = 2
         private const val MAX_HARD_LOCK_DAYS = 90
     }
 }

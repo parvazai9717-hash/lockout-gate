@@ -31,7 +31,7 @@
             android:id="@+id/mainTabGroup"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="20dp"
+            android:layout_marginHorizontal="12dp"
             android:layout_marginTop="16dp"
             app:checkedButton="@id/tabLockoutButton"
             app:selectionRequired="true"
@@ -62,6 +62,13 @@
                 app:iconTint="@color/tab_button_content"
                 app:icon="@drawable/ic_check_circle"
                 app:iconGravity="textStart" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/tabFocusButton"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="@string/tab_keep_me_out"
+                android:textSize="12sp" android:paddingHorizontal="4dp"
+                app:backgroundTint="@color/tab_button_bg" android:textColor="@color/tab_button_content" />
         </com.google.android.material.button.MaterialButtonToggleGroup>
 
         <FrameLayout
@@ -527,6 +534,7 @@
     </ScrollView>
 
             <include layout="@layout/layout_habits" />
+        <include android:id="@+id/focusTab" layout="@layout/content_focus_tab" android:visibility="gone" />
         </FrameLayout>
     </LinearLayout>
 </FrameLayout>

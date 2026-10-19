@@ -1,26 +1,10 @@
-# Paste into Antigravity: Lockout Gate launch website
+# Paste into Antigravity
+Build a small, fast, mobile-first static website for Lockout Gate by Parvaz AI. Use a quiet off-white/violet design matching the actual app, system/self-hosted fonts, keyboard navigation and reduced-motion support. Deliver source and deployment instructions.
 
-Build a polished, accessible, mobile-first static marketing website for Lockout Gate, an Android app from Parvaz AI. Deliver source and deployment instructions. Do not deploy or change any existing VPS service without the owner's review.
+Pages: Home, How it works, Privacy, Support and FAQ. Hero: "More focus. Better habits." Explain three tabs: Lockout, Habits, Keep Me Out. Standard selections are editable; Permanent Mode selections cannot be unchecked after confirmation. Protection pauses are limited to two per calendar month. Keep Me Out is a timed calls/WhatsApp mode with a server-controlled end time and admin-key early exit.
 
-The product is being prepared for closed testing. Do not claim it is already on Google Play. Primary CTA before approval: “Join the test” linking to the real test URL only when supplied; until then show “Testing opens soon” without a fake form. After launch replace it with the verified Google Play link.
+Use the corrected privacy policy. Do not say the whole app is offline: Keep Me Out connects to the configured server. No photo verification, remote AI, ads or purchases are included in the Android preview. Do not expose credentials, VPS IP/admin panel or internal endpoints. Do not invent testimonials, user counts, approved Play badges or a live download link. Until the genuine testing/store URL is supplied, show "Testing opens soon" without a fake form.
 
-Visual direction: quiet off-white backgrounds, dark ink text, violet accent matching the existing app, generous whitespace, rounded panels, crisp typography, strong contrast and restrained animation with reduced-motion support. No generic AI imagery, stock dashboards, fake testimonials or invented download counts. Use real screenshots from the approved preview. Avoid copyrighted anime imagery from the developer's personal background.
+Use real screenshots of the corrected three-tab app, the existing logo and approved feature graphic. Avoid copyrighted anime wallpaper from the owner's personal phone. Provide a permanent readable /privacy page and support contact parvazai9717@gmail.com (owner to confirm). No analytics, tracking pixels, cookies or collection forms. A mailto link is enough. The planned first three months after actual launch are free and ad-free; premium is planned, not available.
 
-Pages:
-1. Home: hero “More focus. Better habits.” Subheading: “Choose distracting apps, take intentional breaks, and keep your daily habits in one place.” Add benefit cards for app selection, measured usage breaks, habits and on-device privacy.
-2. How it works: choose apps → read permission explanations → enable voluntarily → start using focus/break controls. Explain that users can always pause, disable permissions and uninstall.
-3. Privacy: render docs/PRIVACY_POLICY.md as a readable permanent public page at /privacy. Confirm publisher/support details before deployment. No PDF-only policy.
-4. Support: permission troubleshooting, battery-management limitations, resetting local data, and mailto:parvazai9717@gmail.com. Confirm the address first.
-5. FAQ: no account; no photo verification; no remote AI; no cloud backup; no ads or payments in the free launch version; premium may arrive later through an optional update.
-
-Privacy constraints: no analytics, tracking pixels, ad scripts, external font requests, unnecessary cookies, embedded social widgets or collection form. Use self-hosted or system fonts. A mailto support link needs no backend. All pages should be keyboard accessible with visible focus states, descriptive page titles, useful alt text and responsive layouts. Target good Lighthouse accessibility and performance, then record actual results instead of claiming them in advance.
-
-Use the final app's logo and real screenshots. Keep screenshot paths configurable. Include metadata, Open Graph preview, sitemap, robots.txt and a useful 404 page. Do not expose the VPS IP, admin panel, API endpoints or credentials.
-
-Content:
-- Free launch period: first three months from actual public launch, no ads or payments.
-- Premium is planned; do not show pricing, checkout or a paid feature as available yet.
-- Describe it as a personal self-control aid, not child surveillance, medical treatment, or an impossible-to-disable lock.
-- Exact data behavior must agree with the final Android build, not old Python prototype docs.
-
-Acceptance: all navigation works, no dead/fake download button, privacy URL public without login, no unwanted network requests, readable at 320px width and 200% text zoom, and clear handoff with build/deploy commands. Ask only for the domain and real store/test links when those are needed. The site can be hosted as static files; do not add another always-on server.
+Do not deploy to or modify existing VPS services without the owner's direction. Public app setup/recovery is still being prepared, so do not invent how those work. Build static files with no extra always-on server. Check navigation, mobile widths, text zoom and accessibility; report actual checks rather than fabricated scores.

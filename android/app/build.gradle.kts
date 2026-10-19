@@ -12,8 +12,8 @@ val localProperties = Properties().apply {
     }
 }
 
-val serverBaseUrl = localProperties.getProperty("LOCKOUT_SERVER_BASE_URL") ?: "https://lockout-gate-lockout-gate.qt5ga9.easypanel.host/"
-val deviceKey = localProperties.getProperty("LOCKOUT_DEVICE_KEY") ?: "97931aeac1fe752665cf6ffb950e31e48fde30234bd44e64"
+val serverBaseUrl = localProperties.getProperty("LOCKOUT_SERVER_BASE_URL", "")
+val deviceKey = localProperties.getProperty("LOCKOUT_DEVICE_KEY", "")
 
 android {
     namespace = "com.lockout.gate"
@@ -23,12 +23,13 @@ android {
         applicationId = "com.lockout.gate"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "SERVER_BASE_URL", "\"$serverBaseUrl\"")
         buildConfigField("String", "DEVICE_KEY", "\"$deviceKey\"")
+        buildConfigField("String", "FOCUS_DEVICE_ID", "\"${localProperties.getProperty("LOCKOUT_FOCUS_DEVICE_ID", "")}\"")
     }
 
     buildTypes {
@@ -67,6 +68,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
 
     implementation("io.coil-kt:coil:2.6.0")
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

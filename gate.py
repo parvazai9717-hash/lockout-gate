@@ -14,6 +14,7 @@ Run locally:   uvicorn gate:app --host 127.0.0.1 --port 8080
 """
 
 import os
+import logging
 import sqlite3
 import time
 from contextlib import closing
@@ -23,6 +24,7 @@ from zoneinfo import ZoneInfo
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
+import focus
 import work
 
 # --------------------------------------------------------------------- config
@@ -35,6 +37,7 @@ LIMIT_MS = int(os.getenv("LOCKOUT_LIMIT_MIN", "30")) * 60_000
 
 app = FastAPI(title="Lockout Gate", docs_url=None, redoc_url=None)
 app.include_router(work.router)
+app.include_router(focus.router)
 
 # ----------------------------------------------------------------- persistence
 
@@ -58,9 +61,27 @@ def db() -> sqlite3.Connection:
 @app.on_event("startup")
 def init_db() -> None:
     os.makedirs(os.path.dirname(DB_PATH) or ".", exist_ok=True)
+    backup_before_focus()
     with closing(db()) as conn, conn:
         conn.executescript(SCHEMA)
     work.init_schema()
+    focus.init_schema()
+
+
+def backup_before_focus() -> None:
+    """Preserve the existing SQLite data once before adding focus tables."""
+    target = DB_PATH + ".before-focus-v1.bak"
+    if not os.path.isfile(DB_PATH) or os.path.exists(target):
+        return
+    pending = target + ".tmp"
+    try:
+        with closing(db()) as source, closing(sqlite3.connect(pending)) as destination:
+            source.backup(destination)
+        os.replace(pending, target)
+        logging.getLogger("uvicorn.error").info("Pre-focus SQLite backup created in persistent storage.")
+    finally:
+        if os.path.exists(pending):
+            os.remove(pending)
 
 
 def today() -> str:

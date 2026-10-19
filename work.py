@@ -43,6 +43,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from pydantic import BaseModel
 
+import focus
 import gemini_verify
 
 router = APIRouter()
@@ -280,6 +281,8 @@ def break_start(
 ) -> LockState:
     """Start a break — no photo needed. During a hard lock the daily cap drops to 1."""
     _check_auth(x_auth)
+    if focus.focus_active(body.device_id):
+        raise HTTPException(423, "focus lock is active")
     limit_ms = _break_limit_ms(body.minutes)
     with closing(db()) as conn, conn:
         row = _load_device(conn, body.device_id, x_device_secret)
@@ -317,6 +320,8 @@ async def break_claim(
 ) -> BreakClaimResult:
     """Start a hard-lock break — requires a Gemini-verified eating photo."""
     _check_auth(x_auth)
+    if focus.focus_active(device_id):
+        raise HTTPException(423, "focus lock is active")
     limit_ms = _break_limit_ms(minutes)
 
     with closing(db()) as conn, conn:
@@ -466,7 +471,6 @@ def emergency_enable(
             """
             UPDATE lock_state SET
                 enabled = 1,
-                hard_lock_until = NULL,
                 active_break_started_at = NULL,
                 active_break_used_ms = 0
             WHERE device_id = ?

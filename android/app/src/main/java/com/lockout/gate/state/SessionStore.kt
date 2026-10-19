@@ -2,8 +2,12 @@ package com.lockout.gate.state
 
 import android.content.Context
 import android.os.SystemClock
+import com.lockout.gate.BuildConfig
 import com.lockout.gate.Config
 import java.time.LocalDate
+import java.time.YearMonth
+import com.lockout.gate.network.FocusState
+import com.lockout.gate.FocusClock
 import kotlin.math.ceil
 
 /** Local-only release state. No network response can resurrect an expired break. */
@@ -19,9 +23,8 @@ class SessionStore(context: Context) {
         setOfNotNull(context.packageName, "com.android.settings", home, phone)
     }
     private val prefs = context.getSharedPreferences("lockout_session", Context.MODE_PRIVATE)
-    var enabled: Boolean
+    val enabled: Boolean
         get() = prefs.getBoolean("enabled", true)
-        set(v) { prefs.edit().putBoolean("enabled", v).apply() }
     val activeBreak: Boolean get() = prefs.getBoolean("active_break", false)
     val breakId: Long get() = prefs.getLong("break_id", 0)
     val hardLockActive: Boolean get() = prefs.getLong("hard_lock_until_ms", 0) > System.currentTimeMillis()
@@ -53,7 +56,9 @@ class SessionStore(context: Context) {
         set(v) { prefs.edit().putStringSet("standard_blocked_packages", HashSet(v)).apply() }
     var strictBlockedPackages: Set<String>
         get() = prefs.getStringSet("strict_blocked_packages", emptySet())?.toSet() ?: emptySet()
-        set(v) { prefs.edit().putStringSet("strict_blocked_packages", HashSet(v)).apply() }
+        set(v) { synchronized(LOCK) {
+            prefs.edit().putStringSet("strict_blocked_packages", HashSet((strictBlockedPackages + v) - protectedPackages)).commit()
+        } }
     var lastSelectedTab: Int
         get() = prefs.getInt("last_selected_tab", 0)
         set(v) { prefs.edit().putInt("last_selected_tab", v).apply() }
@@ -84,7 +89,7 @@ class SessionStore(context: Context) {
     }
     fun startBreakLocally(): Boolean = synchronized(LOCK) {
         checkDailyAnalyticsReset()
-        if (!enabled || activeBreak || breaksUsedToday >= dailyBreakCap()) return@synchronized false
+        if (!enabled || focusActive() || activeBreak || breaksUsedToday >= dailyBreakCap()) return@synchronized false
         prefs.edit().putInt("breaks_used_today", breaksUsedToday+1)
             .putLong("break_id", breakId + 1)
             .putBoolean("active_break", true).putLong("break_budget_ms", selectedBreakMinutes*60_000L)
@@ -111,12 +116,59 @@ class SessionStore(context: Context) {
     }
     fun endBreakLocally() = synchronized(LOCK) { prefs.edit().putBoolean("active_break", false).commit(); Unit }
     fun startHardLock(days: Int): Boolean = synchronized(LOCK) {
-        if (!enabled || hardLockActive || days !in 1..90) return@synchronized false
+        if (!enabled || focusActive() || hardLockActive || days !in 1..90) return@synchronized false
         prefs.edit().putLong("hard_lock_until_ms", System.currentTimeMillis()+days*86_400_000L)
             .putBoolean("active_break", false).commit()
     }
-    fun setProtection(on: Boolean) = synchronized(LOCK) {
-        prefs.edit().putBoolean("enabled", on).putBoolean("active_break", false).commit(); Unit
+    private fun resetPauseMonth() {
+        val month = YearMonth.now().toString()
+        val recorded = prefs.getString("pause_month", "") ?: ""
+        // A backward date change must not refresh the allowance.
+        if (recorded < month) prefs.edit().putString("pause_month",month).putInt("pauses_used",0).commit()
+    }
+    val pausesRemainingThisMonth: Int get() = synchronized(LOCK) {
+        resetPauseMonth(); (Config.MONTHLY_PAUSES-prefs.getInt("pauses_used",0)).coerceAtLeast(0)
+    }
+    fun setProtection(on: Boolean): Boolean = synchronized(LOCK) {
+        if (!on && focusActive()) return@synchronized false
+        if (!on && enabled) {
+            if (pausesRemainingThisMonth == 0) return@synchronized false
+            return@synchronized prefs.edit().putBoolean("enabled",false).putBoolean("active_break",false)
+                .putInt("pauses_used",prefs.getInt("pauses_used",0)+1).commit()
+        }
+        prefs.edit().putBoolean("enabled",on).putBoolean("active_break",false).commit()
+    }
+
+    val focusDeviceId: String get() = synchronized(LOCK) {
+        if (BuildConfig.FOCUS_DEVICE_ID.isNotBlank()) return@synchronized BuildConfig.FOCUS_DEVICE_ID
+        prefs.getString("focus_device_id",null) ?: java.util.UUID.randomUUID().toString().also {
+            check(prefs.edit().putString("focus_device_id",it).commit())
+        }
+    }
+    val focusDeviceSecret: String get() = synchronized(LOCK) {
+        prefs.getString("focus_device_secret",null) ?: (java.util.UUID.randomUUID().toString()+java.util.UUID.randomUUID().toString()).also {
+            check(prefs.edit().putString("focus_device_secret",it).commit())
+        }
+    }
+    fun focusRemainingMs(): Long = FocusClock.remaining(
+        prefs.getLong("focus_end_wall_ms",0), prefs.getLong("focus_end_elapsed_ms",0),
+        prefs.getInt("focus_boot_count",-1), bootCount(), System.currentTimeMillis(), SystemClock.elapsedRealtime())
+    fun focusActive() = focusRemainingMs() > 0L
+    fun focusEndsAtWall() = prefs.getLong("focus_end_wall_ms",0)
+    fun updateFocus(state: FocusState, allowEarlyEnd: Boolean = false) = synchronized(LOCK) {
+        val previousNow=prefs.getLong("focus_server_now",0)
+        if (state.server_now < previousNow) return@synchronized
+        if (!state.active && !allowEarlyEnd && state.server_now == previousNow && focusActive()) return@synchronized
+        if (!state.active || state.remaining_s <= 0) {
+            prefs.edit().putLong("focus_end_wall_ms",0).putLong("focus_end_elapsed_ms",0)
+                .putLong("focus_server_now",state.server_now).commit()
+        } else {
+            val remaining=state.remaining_s.coerceIn(0,Config.MAX_FOCUS_MINUTES*60)*1000L
+            prefs.edit().putLong("focus_end_wall_ms",System.currentTimeMillis()+remaining)
+                .putLong("focus_end_elapsed_ms",SystemClock.elapsedRealtime()+remaining)
+                .putInt("focus_boot_count",bootCount()).putLong("focus_server_now",state.server_now)
+                .putBoolean("active_break",false).putBoolean("enabled",true).commit()
+        }
     }
     companion object { private val LOCK = Any() }
 }

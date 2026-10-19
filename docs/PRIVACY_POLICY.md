@@ -1,30 +1,14 @@
-# Lockout Gate privacy policy — release draft
-Last updated: 19 October 2026.
+# Lockout Gate privacy policy - corrected draft
+Updated 19 October 2026. Publisher: Parvaz AI / Ahmad Ameen. Support: parvazai9717@gmail.com. Confirm public details before publication.
 
-Publisher: Parvaz AI / Ahmad. Support: parvazai9717@gmail.com.
-Owner must confirm these public contact details and host this policy before submission.
+App selections, habits, completion dates, break-use counters, pause quota and copied background pictures are stored in app-private storage. Accessibility identifies foreground package names to show a blocking screen; it does not retrieve screen text, messages or passwords. Usage Access measures selected-app time during ordinary breaks. Optional notifications show break status.
 
-## What this version does
-Lockout Gate helps you manage distracting apps and track personal habits on your own Android device. The release candidate works locally without an account, server connection, advertising, purchase flow, remote AI or analytics SDK.
+**Keep Me Out uses a server.** Over HTTPS it sends a device identifier, authentication/per-install credentials, requested lock duration, state requests, and early-exit requests. The server stores lock start/end times, a hash of the per-install secret and failed admin-attempt counters. The admin key is sent only when entered for early exit and is not saved on the phone. The hosting provider can process operational connection/IP logs. App lists, habits and background pictures are not uploaded by this Android build.
 
-## Information used on your phone
-You choose apps from a list of launchable installed apps. Android Accessibility events identify the foreground app so Lockout Gate can show a blocking screen for your selections. The service does not retrieve window text, messages, passwords or screenshots. Android Usage Access supplies activity events used to count time spent in selected apps during a break. These data are processed locally.
+There are no ads, payments, analytics SDKs or remote AI calls in this Android preview. Legacy server photo-verification endpoints remain for compatibility but are not used by the app; do not describe them as part of the current phone flow.
 
-Your selected apps, break allowance, local activity counters, hard-lock expiry, habit names, habit completion dates and preferences are stored in the app's private storage. If you pick a background image, a copy is saved in private storage for display. Images are not uploaded.
+Two protection pauses are available per calendar month. Permanent app selections cannot be unchecked inside the app after confirmation. Keep Me Out cannot be cancelled by an ordinary pause or break. Android permission controls, Settings and uninstall remain available; disabling permissions, clearing storage or uninstalling can defeat on-device enforcement and deletes local data. Do not claim reinstall resistance or impossible-to-bypass control.
 
-Optional notifications display break status. Denying notifications does not prevent blocking. Denying Accessibility prevents app blocking; denying Usage Access prevents reliable break measurement.
+Deleting a habit removes its local completion data. There is no app-provided cloud backup. Server lock/device records are separate from local app data. The personal-server preview currently requires contacting the server operator for server-data deletion; implement per-user deletion and recovery before public launch. Retention and server-log configuration must be finalized and disclosed before store submission.
 
-## Collection, sharing and payments
-This build does not transmit app data to Parvaz AI, advertisers, analytics providers or an AI provider. It has no advertisements, accounts, payments or subscriptions. If you contact support by email, your email provider and our support inbox process the message and information you choose to send; do not include sensitive personal content.
-
-## Control and retention
-You may change selected apps, pause protection, disable permissions in Android Settings or uninstall the app at any time. Habit deletion removes that habit and its completion history from app storage. Clearing Android app storage or uninstalling removes all local app data and the copied background. There is no cloud backup or remote account to delete. Anyone with access to your unlocked device may be able to access the app.
-
-## Audience and limitations
-This version is intended for people managing their own attention. It is not parental monitoring, medical treatment, a security lock, or a guarantee that app restrictions cannot be bypassed. Do not restrict emergency communication or essential system functions.
-
-## Future updates
-Features that would introduce data transmission, advertising, purchases or cloud storage require revised disclosures and a separate update. No payment starts automatically. The publisher will update this policy when behavior changes.
-
-## Contact
-Email parvazai9717@gmail.com with privacy or support questions. The release owner must confirm this is a monitored support address before publication.
+This is a self-control tool for the device owner, not surveillance, parental monitoring or medical treatment. No payment starts automatically. Publish a permanent public HTTPS policy matching the final signed build before Google Play submission.

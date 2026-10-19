@@ -1,4 +1,12 @@
-# Release candidate validation
+# Version 0.3 preview validation
+
+This update supersedes the historical 0.2 results below. Locally, the 0.3 debug APK, minified unsigned release AAB and instrumentation APK build successfully. Sixteen JVM tests (11 usage, 4 focus-clock, 1 API JSON) and 15 server tests pass. Android lint reports zero errors and 157 warnings. Version code is 3; version name is 0.3.0. HTTPS networking is required for Keep Me Out; no fallback server credential remains in current source.
+
+The current device suite has 20 tests, adding monthly pause limits, permanent selections and focus state. Its results must be recorded after Studio runs it; historical results do not certify this update. Owner preview preferences are privately backed up before tests and restored afterward. Install through Studio Run.
+
+Keep Me Out server changes require deployment with persistent storage; startup creates a consistent pre-focus SQLite backup without overwriting an earlier snapshot. The shared device/master-admin configuration is a personal preview. Public release requires user-owned provisioning/recovery, rotation of the previously committed device key, signed-update testing and the remaining device/Play checks.
+
+## Historical 0.2 results (superseded)
 
 Prepared 19 October 2026 from Android Studio branch `claude/ai-work-accountability-agent-ork10y`, commit `298e8ff8bbcd88d629cfbde24b0f543be6920fb7`, in an isolated checkout. These findings describe this candidate, not the installed personal app or the old `main` prototype.
 
