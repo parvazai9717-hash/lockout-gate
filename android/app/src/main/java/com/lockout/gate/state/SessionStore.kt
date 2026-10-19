@@ -1,287 +1,122 @@
 package com.lockout.gate.state
 
 import android.content.Context
-import android.content.SharedPreferences
+import android.os.SystemClock
 import com.lockout.gate.Config
-import com.lockout.gate.network.LockState
-import java.security.SecureRandom
 import java.time.LocalDate
-import java.util.UUID
+import kotlin.math.ceil
 
-/**
- * Local cache of the server's /v1/lock/state, so the accessibility service
- * can decide instantly whether to block an app without a network round-trip
- * on every foreground-app change. Refreshed periodically from the server;
- * the server is always the source of truth, this is just a fast mirror.
- */
+/** Local-only release state. No network response can resurrect an expired break. */
 class SessionStore(context: Context) {
-    private val prefs: SharedPreferences =
-        context.getSharedPreferences("lockout_session", Context.MODE_PRIVATE)
-
+    private val appContext = context.applicationContext
+    private fun bootCount(): Int = android.provider.Settings.Global.getInt(appContext.contentResolver, "boot_count", 0)
+    private val protectedPackages: Set<String> by lazy {
+        val pm = context.packageManager
+        val home = pm.resolveActivity(android.content.Intent(android.content.Intent.ACTION_MAIN)
+            .addCategory(android.content.Intent.CATEGORY_HOME), 0)?.activityInfo?.packageName
+        val phone = pm.resolveActivity(android.content.Intent(android.content.Intent.ACTION_DIAL,
+            android.net.Uri.parse("tel:")), 0)?.activityInfo?.packageName
+        setOfNotNull(context.packageName, "com.android.settings", home, phone)
+    }
+    private val prefs = context.getSharedPreferences("lockout_session", Context.MODE_PRIVATE)
     var enabled: Boolean
-        get() = prefs.getBoolean(KEY_ENABLED, true)
-        set(value) = prefs.edit().putBoolean(KEY_ENABLED, value).apply()
-
-    var locked: Boolean
-        get() = prefs.getBoolean(KEY_LOCKED, true)
-        set(value) = prefs.edit().putBoolean(KEY_LOCKED, value).apply()
-
-    var hardLockActive: Boolean
-        get() = prefs.getBoolean(KEY_HARD_LOCK_ACTIVE, false)
-        set(value) = prefs.edit().putBoolean(KEY_HARD_LOCK_ACTIVE, value).apply()
-
-    var hardLockDaysRemaining: Int
-        get() = prefs.getInt(KEY_HARD_LOCK_DAYS, 0)
-        set(value) = prefs.edit().putInt(KEY_HARD_LOCK_DAYS, value).apply()
-
-    var breaksUsedToday: Int
-        get() = prefs.getInt(KEY_BREAKS_USED, 0)
-        set(value) = prefs.edit().putInt(KEY_BREAKS_USED, value).apply()
-
-    var breaksRemainingToday: Int
-        get() = prefs.getInt(KEY_BREAKS_REMAINING, Config.DAILY_BREAKS_NORMAL)
-        set(value) = prefs.edit().putInt(KEY_BREAKS_REMAINING, value).apply()
-
-    var activeBreak: Boolean
-        get() = prefs.getBoolean(KEY_ACTIVE_BREAK, false)
-        set(value) = prefs.edit().putBoolean(KEY_ACTIVE_BREAK, value).apply()
-
-    var emergencyAvailable: Boolean
-        get() = prefs.getBoolean(KEY_EMERGENCY_AVAILABLE, true)
-        set(value) = prefs.edit().putBoolean(KEY_EMERGENCY_AVAILABLE, value).apply()
-
-    /** Remaining break budget as last reported by the server; 0 when unknown. */
-    var serverBreakRemainingMs: Long
-        get() = prefs.getLong(KEY_SERVER_BREAK_REMAINING, 0L)
-        set(value) = prefs.edit().putLong(KEY_SERVER_BREAK_REMAINING, value).apply()
-
-    /**
-     * Local device-clock checkpoint of usage already reported to the server
-     * for the current break. Reset to "now" whenever activeBreak flips from
-     * false to true, so only usage since the break actually started counts.
-     */
-    var usageCheckpointMs: Long
-        get() = prefs.getLong(KEY_USAGE_CHECKPOINT, 0L)
-        set(value) = prefs.edit().putLong(KEY_USAGE_CHECKPOINT, value).apply()
-
+        get() = prefs.getBoolean("enabled", true)
+        set(v) { prefs.edit().putBoolean("enabled", v).apply() }
+    val activeBreak: Boolean get() = prefs.getBoolean("active_break", false)
+    val breakId: Long get() = prefs.getLong("break_id", 0)
+    val hardLockActive: Boolean get() = prefs.getLong("hard_lock_until_ms", 0) > System.currentTimeMillis()
+    val hardLockDaysRemaining: Int get() = ceil(((prefs.getLong("hard_lock_until_ms", 0) - System.currentTimeMillis()).coerceAtLeast(0)).toDouble()/86_400_000).toInt()
+    val locked: Boolean get() = enabled && !activeBreak
+    val breaksUsedToday: Int get() { checkDailyAnalyticsReset(); return prefs.getInt("breaks_used_today", 0) }
+    val breaksRemainingToday: Int get() = (dailyBreakCap() - breaksUsedToday).coerceAtLeast(0)
+    val emergencyAvailable: Boolean get() = true // The user must always retain control.
     var warned5Min: Boolean
-        get() = prefs.getBoolean(KEY_WARNED_5MIN, false)
-        set(value) = prefs.edit().putBoolean(KEY_WARNED_5MIN, value).apply()
-
+        get() = prefs.getBoolean("warned_5min", false)
+        set(v) { prefs.edit().putBoolean("warned_5min", v).apply() }
     var warned1Min: Boolean
-        get() = prefs.getBoolean(KEY_WARNED_1MIN, false)
-        set(value) = prefs.edit().putBoolean(KEY_WARNED_1MIN, value).apply()
-
-    var cumulativeBreakUsageMs: Long
-        get() = prefs.getLong(KEY_CUMULATIVE_BREAK_USAGE, 0L)
-        set(value) = prefs.edit().putLong(KEY_CUMULATIVE_BREAK_USAGE, value).apply()
-
-    val timeSavedMsToday: Long
-        get() {
-            checkDailyAnalyticsReset()
-            return prefs.getLong(KEY_TIME_SAVED, 0L)
-        }
-
-    val streakDays: Int
-        get() {
-            checkDailyAnalyticsReset()
-            return prefs.getInt(KEY_STREAK_DAYS, 1)
-        }
-
-    var customBackgroundPath: String?
-        get() = prefs.getString(KEY_CUSTOM_BACKGROUND, null)
-        set(value) = prefs.edit().putString(KEY_CUSTOM_BACKGROUND, value).apply()
-
-    var standardBlockedPackages: Set<String>
-        get() = prefs.getStringSet(KEY_STANDARD_BLOCKED_PACKAGES, emptySet())?.toSet() ?: emptySet()
-        set(value) = prefs.edit().putStringSet(KEY_STANDARD_BLOCKED_PACKAGES, HashSet(value)).apply()
-
-    var strictBlockedPackages: Set<String>
-        get() = prefs.getStringSet(KEY_STRICT_BLOCKED_PACKAGES, emptySet())?.toSet() ?: emptySet()
-        set(value) = prefs.edit().putStringSet(KEY_STRICT_BLOCKED_PACKAGES, HashSet(value)).apply()
-
+        get() = prefs.getBoolean("warned_1min", false)
+        set(v) { prefs.edit().putBoolean("warned_1min", v).apply() }
+    var usageCheckpointMs: Long
+        get() = prefs.getLong("usage_checkpoint_ms", 0)
+        set(v) { prefs.edit().putLong("usage_checkpoint_ms", v).apply() }
+    val cumulativeBreakUsageMs: Long get() = prefs.getLong("cumulative_break_usage_ms", 0)
+    val breakBudgetMs: Long get() = prefs.getLong("break_budget_ms", 30 * 60_000L)
+    val breakRemainingMs: Long get() = (breakBudgetMs - cumulativeBreakUsageMs).coerceAtLeast(0)
     var selectedBreakMinutes: Int
-        get() = prefs.getInt(KEY_SELECTED_BREAK_MINUTES, Config.BREAK_MINUTES)
-        set(value) = prefs.edit().putInt(KEY_SELECTED_BREAK_MINUTES, value).apply()
-
-    val deviceId: String
-        get() {
-            val existing = prefs.getString(KEY_DEVICE_ID, null)
-            if (!existing.isNullOrEmpty()) return existing
-            val id = UUID.randomUUID().toString()
-            prefs.edit().putString(KEY_DEVICE_ID, id).commit()
-            return id
-        }
-
-    /**
-     * Per-install secret sent with every request. The server remembers its
-     * hash the first time it sees this device, so knowing a device_id plus
-     * the app-wide DEVICE_KEY is no longer enough to control another phone.
-     */
-    val deviceSecret: String
-        get() {
-            val existing = prefs.getString(KEY_DEVICE_SECRET, null)
-            if (!existing.isNullOrEmpty()) return existing
-            val bytes = ByteArray(32).also { SecureRandom().nextBytes(it) }
-            val secret = bytes.joinToString("") { "%02x".format(it) }
-            prefs.edit().putString(KEY_DEVICE_SECRET, secret).commit()
-            return secret
-        }
-
+        get() = prefs.getInt("selected_break_minutes", Config.BREAK_MINUTES).coerceIn(1, 45)
+        set(v) { prefs.edit().putInt("selected_break_minutes", v.coerceIn(1, 45)).apply() }
+    var customBackgroundPath: String?
+        get() = prefs.getString("custom_background_path", null)
+        set(v) { prefs.edit().putString("custom_background_path", v).apply() }
+    var standardBlockedPackages: Set<String>
+        get() = prefs.getStringSet("standard_blocked_packages", emptySet())?.toSet() ?: emptySet()
+        set(v) { prefs.edit().putStringSet("standard_blocked_packages", HashSet(v)).apply() }
+    var strictBlockedPackages: Set<String>
+        get() = prefs.getStringSet("strict_blocked_packages", emptySet())?.toSet() ?: emptySet()
+        set(v) { prefs.edit().putStringSet("strict_blocked_packages", HashSet(v)).apply() }
     var lastSelectedTab: Int
-        get() = prefs.getInt(KEY_LAST_TAB, 0)
-        set(value) = prefs.edit().putInt(KEY_LAST_TAB, value).apply()
-
+        get() = prefs.getInt("last_selected_tab", 0)
+        set(v) { prefs.edit().putInt("last_selected_tab", v).apply() }
     var isFirstRun: Boolean
-        get() = prefs.getBoolean(KEY_FIRST_RUN, true)
-        set(value) = prefs.edit().putBoolean(KEY_FIRST_RUN, value).apply()
+        get() = prefs.getBoolean("is_first_run", true)
+        set(v) { prefs.edit().putBoolean("is_first_run", v).apply() }
+    val timeSavedMsToday: Long get() { checkDailyAnalyticsReset(); return prefs.getLong("time_saved_today_ms", 0) }
+    val blockedAttemptsToday: Int get() { checkDailyAnalyticsReset(); return prefs.getInt("blocked_attempts", 0) }
+    val streakDays: Int get() { checkDailyAnalyticsReset(); return prefs.getInt("streak_days", 1) }
+    fun getAllBlockedPackages(): Set<String> = (standardBlockedPackages + strictBlockedPackages) - protectedPackages
+    fun isLocked() = enabled && !activeBreak
+    fun dailyBreakCap() = if (hardLockActive) Config.DAILY_BREAKS_HARD_LOCK else Config.DAILY_BREAKS_NORMAL
 
-    fun getAllBlockedPackages(): Set<String> =
-        Config.ENTERTAINMENT_PACKAGES + standardBlockedPackages + strictBlockedPackages
-
-    /** True when a blocked app should currently be blocked. */
-    fun isLocked(): Boolean = enabled && locked
-
-    /** Self-protection runs at all times while protection is enabled. */
-    fun selfProtectionActive(): Boolean = enabled
-
-    fun dailyBreakCap(): Int =
-        if (hardLockActive) Config.DAILY_BREAKS_HARD_LOCK else Config.DAILY_BREAKS_NORMAL
-
-    /**
-     * Rolls the per-day counters over when the calendar date changes. Reads
-     * and writes prefs directly — never through the getters above that call
-     * back into this function, which previously recursed forever
-     * (StackOverflowError) on the first check of every new day.
-     */
-    @Synchronized
-    fun checkDailyAnalyticsReset() {
-        val today = LocalDate.now()
-        val lastDate = prefs.getString(KEY_LAST_ANALYTICS_DATE, null)
-        if (lastDate == today.toString()) return
-
-        val previousStreak = prefs.getInt(KEY_STREAK_DAYS, 0)
-        val newStreak = if (lastDate == today.minusDays(1).toString()) previousStreak + 1 else 1
-
-        prefs.edit()
-            .putString(KEY_LAST_ANALYTICS_DATE, today.toString())
-            .putInt(KEY_STREAK_DAYS, newStreak)
-            .putLong(KEY_TIME_SAVED, 0L)
-            .putInt(KEY_BREAKS_USED, 0)
-            .putInt(KEY_BREAKS_REMAINING, dailyBreakCap())
-            .apply()
-    }
-
-    fun addSavedTime(ms: Long) {
-        checkDailyAnalyticsReset()
-        prefs.edit().putLong(KEY_TIME_SAVED, prefs.getLong(KEY_TIME_SAVED, 0L) + ms).apply()
-    }
-
-    /**
-     * Activates a break on-device instantly when starting a break offline or
-     * without server round-trip verification. Checks daily break allowance.
-     */
-    fun startBreakLocally(): Boolean {
-        checkDailyAnalyticsReset()
-        val maxAllowed = dailyBreakCap()
-        if (breaksUsedToday >= maxAllowed) return false
-        val used = breaksUsedToday + 1
-        val remaining = (maxAllowed - used).coerceAtLeast(0)
-        prefs.edit()
-            .putInt(KEY_BREAKS_USED, used)
-            .putInt(KEY_BREAKS_REMAINING, remaining)
-            .putBoolean(KEY_ACTIVE_BREAK, true)
-            .putBoolean(KEY_LOCKED, false)
-            .putBoolean(KEY_IS_LOCAL_BREAK, true)
-            .putLong(KEY_USAGE_CHECKPOINT, System.currentTimeMillis())
-            .putLong(KEY_CUMULATIVE_BREAK_USAGE, 0L)
-            .putLong(KEY_SERVER_BREAK_REMAINING, 0L)
-            .putBoolean(KEY_WARNED_5MIN, false)
-            .putBoolean(KEY_WARNED_1MIN, false)
-            .apply()
-        return true
-    }
-
-    /** Ends the current break locally (offline expiry). */
-    fun endBreakLocally() {
-        prefs.edit()
-            .putBoolean(KEY_ACTIVE_BREAK, false)
-            .putBoolean(KEY_LOCKED, true)
-            .putBoolean(KEY_IS_LOCAL_BREAK, false)
-            .putLong(KEY_CUMULATIVE_BREAK_USAGE, 0L)
-            .putLong(KEY_SERVER_BREAK_REMAINING, 0L)
-            .apply()
-    }
-
-    fun update(state: LockState) {
-        checkDailyAnalyticsReset()
-        val wasActiveBreak = activeBreak
-
-        // If a local break is currently active, preserve activeBreak and locked state
-        // until the local break budget is fully exhausted.
-        val keepLocalBreak = isLocalBreak && activeBreak
-
-        val effectiveActiveBreak = if (keepLocalBreak) true else state.active_break
-        val effectiveLocked = if (keepLocalBreak) false else state.locked
-
-        // Local breaks_used_today must never decrease during the same calendar day!
-        val effectiveBreaksUsed = maxOf(breaksUsedToday, state.breaks_used_today)
-        val effectiveBreaksRemaining = (dailyBreakCap() - effectiveBreaksUsed).coerceAtLeast(0)
-
-        val edit = prefs.edit()
-            .putBoolean(KEY_ENABLED, state.enabled)
-            .putBoolean(KEY_LOCKED, effectiveLocked)
-            .putBoolean(KEY_HARD_LOCK_ACTIVE, state.hard_lock_active)
-            .putInt(KEY_HARD_LOCK_DAYS, state.hard_lock_days_remaining)
-            .putInt(KEY_BREAKS_USED, effectiveBreaksUsed)
-            .putInt(KEY_BREAKS_REMAINING, effectiveBreaksRemaining)
-            .putBoolean(KEY_ACTIVE_BREAK, effectiveActiveBreak)
-            .putBoolean(KEY_EMERGENCY_AVAILABLE, state.emergency_available)
-            .putLong(KEY_SERVER_BREAK_REMAINING, state.active_break_remaining_ms)
-
-        if (effectiveActiveBreak && (!wasActiveBreak || usageCheckpointMs <= 0L)) {
-            edit.putLong(KEY_USAGE_CHECKPOINT, System.currentTimeMillis())
-                .putLong(KEY_CUMULATIVE_BREAK_USAGE, 0L)
-                .putBoolean(KEY_WARNED_5MIN, false)
-                .putBoolean(KEY_WARNED_1MIN, false)
-        } else if (!effectiveActiveBreak) {
-            edit.putBoolean(KEY_IS_LOCAL_BREAK, false)
-                .putLong(KEY_CUMULATIVE_BREAK_USAGE, 0L)
-                .putBoolean(KEY_WARNED_5MIN, false)
-                .putBoolean(KEY_WARNED_1MIN, false)
+    fun checkDailyAnalyticsReset() = synchronized(LOCK) {
+        val today = LocalDate.now().toString()
+        val previous = prefs.getString("last_analytics_date", null)
+        if (previous != today) {
+            val consecutive = previous == LocalDate.now().minusDays(1).toString()
+            prefs.edit().putString("last_analytics_date", today)
+                .putInt("streak_days", if (consecutive) prefs.getInt("streak_days", 0)+1 else 1)
+                .putInt("breaks_used_today", 0).putInt("blocked_attempts", 0)
+                .putLong("time_saved_today_ms", 0).apply()
         }
-        edit.apply()
     }
-
-    var isLocalBreak: Boolean
-        get() = prefs.getBoolean(KEY_IS_LOCAL_BREAK, false)
-        set(value) = prefs.edit().putBoolean(KEY_IS_LOCAL_BREAK, value).apply()
-
-    companion object {
-        private const val KEY_ENABLED = "enabled"
-        private const val KEY_LOCKED = "locked"
-        private const val KEY_HARD_LOCK_ACTIVE = "hard_lock_active"
-        private const val KEY_HARD_LOCK_DAYS = "hard_lock_days_remaining"
-        private const val KEY_BREAKS_USED = "breaks_used_today"
-        private const val KEY_BREAKS_REMAINING = "breaks_remaining_today"
-        private const val KEY_ACTIVE_BREAK = "active_break"
-        private const val KEY_IS_LOCAL_BREAK = "is_local_break"
-        private const val KEY_EMERGENCY_AVAILABLE = "emergency_available"
-        private const val KEY_SERVER_BREAK_REMAINING = "server_break_remaining_ms"
-        private const val KEY_USAGE_CHECKPOINT = "usage_checkpoint_ms"
-        private const val KEY_WARNED_5MIN = "warned_5min"
-        private const val KEY_WARNED_1MIN = "warned_1min"
-        private const val KEY_CUMULATIVE_BREAK_USAGE = "cumulative_break_usage_ms"
-        private const val KEY_TIME_SAVED = "time_saved_today_ms"
-        private const val KEY_STREAK_DAYS = "streak_days"
-        private const val KEY_LAST_ANALYTICS_DATE = "last_analytics_date"
-        private const val KEY_CUSTOM_BACKGROUND = "custom_background_path"
-        private const val KEY_STANDARD_BLOCKED_PACKAGES = "standard_blocked_packages"
-        private const val KEY_STRICT_BLOCKED_PACKAGES = "strict_blocked_packages"
-        private const val KEY_SELECTED_BREAK_MINUTES = "selected_break_minutes"
-        private const val KEY_DEVICE_ID = "device_id"
-        private const val KEY_DEVICE_SECRET = "device_secret"
-        private const val KEY_LAST_TAB = "last_selected_tab"
-        private const val KEY_FIRST_RUN = "is_first_run"
+    fun recordBlockedAttempt() = synchronized(LOCK) {
+        checkDailyAnalyticsReset()
+        prefs.edit().putInt("blocked_attempts", prefs.getInt("blocked_attempts", 0)+1).apply()
     }
+    fun startBreakLocally(): Boolean = synchronized(LOCK) {
+        checkDailyAnalyticsReset()
+        if (!enabled || activeBreak || breaksUsedToday >= dailyBreakCap()) return@synchronized false
+        prefs.edit().putInt("breaks_used_today", breaksUsedToday+1)
+            .putLong("break_id", breakId + 1)
+            .putBoolean("active_break", true).putLong("break_budget_ms", selectedBreakMinutes*60_000L)
+            .putLong("usage_checkpoint_ms", System.currentTimeMillis())
+            .putLong("elapsed_checkpoint_ms", SystemClock.elapsedRealtime())
+            .putInt("break_boot_count", bootCount())
+            .putLong("cumulative_break_usage_ms", 0).putBoolean("warned_5min", false)
+            .putBoolean("warned_1min", false).commit()
+    }
+    /** Persist checkpoint and usage together; a crash cannot advance just one. */
+    fun accountUsage(usage: Long, wallNow: Long, elapsedNow: Long, expectedBreakId: Long = breakId) = synchronized(LOCK) {
+        if (!activeBreak || expectedBreakId != breakId) return@synchronized
+        val oldElapsed = prefs.getLong("elapsed_checkpoint_ms", elapsedNow)
+        val oldWall = usageCheckpointMs
+        // Reboot or backwards clock change ends this break rather than granting extra time.
+        if (bootCount() != prefs.getInt("break_boot_count", bootCount()) || elapsedNow < oldElapsed || wallNow < oldWall) {
+            endBreakLocally(); return@synchronized
+        }
+        val delta = usage.coerceIn(0, (elapsedNow-oldElapsed).coerceAtLeast(0))
+        val total = (cumulativeBreakUsageMs + delta).coerceAtMost(breakBudgetMs)
+        prefs.edit().putLong("cumulative_break_usage_ms", total)
+            .putLong("usage_checkpoint_ms", wallNow).putLong("elapsed_checkpoint_ms", elapsedNow)
+            .putBoolean("active_break", total < breakBudgetMs).commit()
+    }
+    fun endBreakLocally() = synchronized(LOCK) { prefs.edit().putBoolean("active_break", false).commit(); Unit }
+    fun startHardLock(days: Int): Boolean = synchronized(LOCK) {
+        if (!enabled || hardLockActive || days !in 1..90) return@synchronized false
+        prefs.edit().putLong("hard_lock_until_ms", System.currentTimeMillis()+days*86_400_000L)
+            .putBoolean("active_break", false).commit()
+    }
+    fun setProtection(on: Boolean) = synchronized(LOCK) {
+        prefs.edit().putBoolean("enabled", on).putBoolean("active_break", false).commit(); Unit
+    }
+    companion object { private val LOCK = Any() }
 }

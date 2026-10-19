@@ -22,7 +22,7 @@ import com.lockout.gate.state.SessionStore
  * Guides click-by-click through app capabilities, Accessibility permission,
  * Usage Statistics access, blocklist configuration, and final launch.
  */
-class OnboardingActivity : AppCompatActivity() {
+class OnboardingActivity : BaseActivity() {
 
     private lateinit var store: SessionStore
     private lateinit var viewPager: ViewPager2

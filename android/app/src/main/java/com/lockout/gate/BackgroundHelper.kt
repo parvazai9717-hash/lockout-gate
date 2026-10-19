@@ -14,34 +14,36 @@ object BackgroundHelper {
 
     private const val BACKGROUND_FILENAME = "custom_background_raw.jpg"
 
-    /**
-     * Copies the picked image directly from its Uri stream to private local
-     * storage without ANY lossy bitmap compression, re-encoding, or quality
-     * downsampling. Retains 100% of the original photo's source resolution.
-     */
+    /** Call off the UI thread. Validate and bound the copy before replacing the old image. */
     fun saveCustomBackground(ctx: Context, uri: Uri): Boolean {
+        val pending = File(ctx.filesDir, "background_pending")
         return try {
-            val destFile = File(ctx.filesDir, BACKGROUND_FILENAME)
-            ctx.contentResolver.openInputStream(uri)?.use { input ->
-                destFile.outputStream().use { output ->
-                    input.copyTo(output)
+            val input = ctx.contentResolver.openInputStream(uri) ?: return false
+            input.use { source -> pending.outputStream().use { out ->
+                val buffer = ByteArray(8192)
+                var total = 0L
+                while (true) {
+                    val count = source.read(buffer)
+                    if (count < 0) break
+                    total += count
+                    require(total <= 20 * 1024 * 1024) { "Image too large" }
+                    out.write(buffer, 0, count)
                 }
-            }
-            SessionStore(ctx).customBackgroundPath = destFile.absolutePath
+            } }
+            val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            android.graphics.BitmapFactory.decodeFile(pending.absolutePath, options)
+            require(options.outWidth > 0 && options.outHeight > 0) { "Invalid image" }
+            val dest = File(ctx.filesDir, BACKGROUND_FILENAME)
+            check(pending.renameTo(dest)) { "Could not save image" }
+            SessionStore(ctx).customBackgroundPath = dest.absolutePath
             true
-        } catch (e: Exception) {
-            false
-        }
+        } catch (e: Exception) { false } finally { pending.delete() }
     }
 
     /** Clears the custom background image path and deletes the local file. */
     fun clearCustomBackground(ctx: Context) {
         val store = SessionStore(ctx)
-        val path = store.customBackgroundPath
-        if (path != null) {
-            val file = File(path)
-            if (file.exists()) file.delete()
-        }
+        File(ctx.filesDir, BACKGROUND_FILENAME).delete()
         store.customBackgroundPath = null
     }
 

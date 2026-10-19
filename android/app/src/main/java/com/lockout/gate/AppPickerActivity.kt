@@ -27,7 +27,7 @@ data class AppInfo(
     val icon: Drawable,
 )
 
-class AppPickerActivity : AppCompatActivity() {
+class AppPickerActivity : BaseActivity() {
 
     private lateinit var store: SessionStore
     private lateinit var recyclerView: RecyclerView
@@ -86,13 +86,15 @@ class AppPickerActivity : AppCompatActivity() {
                 val resolveInfos = packageManager.queryIntentActivities(intent, 0)
                 resolveInfos.mapNotNull { resolveInfo ->
                     val pkg = resolveInfo.activityInfo.packageName
-                    if (pkg == packageName) null // Skip LockoutGate itself
+                    if (pkg == packageName || pkg == "com.android.settings" ||
+                        pkg == packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)?.activityInfo?.packageName ||
+                        pkg == packageManager.resolveActivity(Intent(Intent.ACTION_DIAL, android.net.Uri.parse("tel:")), 0)?.activityInfo?.packageName) null // Skip LockoutGate itself
                     else {
                         val name = resolveInfo.loadLabel(packageManager).toString()
                         val icon = resolveInfo.loadIcon(packageManager)
                         AppInfo(name, pkg, icon)
                     }
-                }.sortedBy { it.appName.lowercase() }
+                }.distinctBy { it.packageName }.sortedBy { it.appName.lowercase() }
             }
             appList = apps
             progressBar.visibility = View.GONE
@@ -133,8 +135,15 @@ class AppPickerActivity : AppCompatActivity() {
 
             if (isStrictLocked) {
                 holder.checkBox.isChecked = true
-                holder.checkBox.isEnabled = false
+                holder.checkBox.isEnabled = true
                 holder.badgeView.visibility = View.VISIBLE
+                holder.checkBox.setOnCheckedChangeListener { _, checked ->
+                    if (!checked) {
+                        store.strictBlockedPackages = store.strictBlockedPackages - pkg
+                        val currentPosition = holder.adapterPosition
+                        if (currentPosition != RecyclerView.NO_POSITION) notifyItemChanged(currentPosition)
+                    }
+                }
             } else if (!isStrictMode) {
                 holder.badgeView.visibility = View.GONE
                 holder.checkBox.isChecked = isStandardBlocked

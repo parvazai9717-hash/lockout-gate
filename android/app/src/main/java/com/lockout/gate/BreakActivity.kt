@@ -10,20 +10,13 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
 import com.google.android.material.chip.ChipGroup
-import com.lockout.gate.network.ApiClient
-import com.lockout.gate.network.DeviceRequest
 import com.lockout.gate.state.SessionStore
-import kotlinx.coroutines.launch
-import java.io.IOException
-import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * Start a break in 1 tap (no photo required). Breaks can be activated both
- * online via the backend API or locally on-device when offline or during hard lock.
+ * Start an on-device break without photos, accounts or a server connection.
  */
-class BreakActivity : AppCompatActivity() {
+class BreakActivity : BaseActivity() {
 
     private lateinit var store: SessionStore
 
@@ -41,6 +34,8 @@ class BreakActivity : AppCompatActivity() {
 
         val chipGroup = findViewById<ChipGroup>(R.id.breakDurationChipGroup)
         chipGroup.check(chipIdFor(store.selectedBreakMinutes))
+        chipGroup.isEnabled = !store.activeBreak
+        for (i in 0 until chipGroup.childCount) chipGroup.getChildAt(i).isEnabled = !store.activeBreak
         chipGroup.setOnCheckedStateChangeListener { _, checkedIds ->
             if (checkedIds.isNotEmpty()) {
                 store.selectedBreakMinutes = minutesFor(checkedIds.first())
@@ -68,22 +63,11 @@ class BreakActivity : AppCompatActivity() {
         else -> 30
     }
 
-    private fun refreshAndRender() {
-        lifecycleScope.launch {
-            try {
-                val resp = ApiClient.api.lockState(Config.DEVICE_KEY, store.deviceId)
-                val body = resp.body()
-                if (resp.isSuccessful && body != null) store.update(body)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                // Offline or unexpected response — keep the cached state.
-            }
-            render()
-        }
-    }
+    private fun refreshAndRender() { render() }
 
     private fun render() {
+        val choices = findViewById<ChipGroup>(R.id.breakDurationChipGroup)
+        for (i in 0 until choices.childCount) choices.getChildAt(i).isEnabled = !store.activeBreak
         val info = findViewById<TextView>(R.id.breakInfoText)
         val limitReached = store.breaksRemainingToday <= 0 || store.breaksUsedToday >= store.dailyBreakCap()
         info.text = when {
@@ -93,10 +77,11 @@ class BreakActivity : AppCompatActivity() {
         }
         val submitBtn = findViewById<Button>(R.id.submitBreakButton)
         submitBtn.setText(R.string.break_submit_simple)
-        submitBtn.isEnabled = !store.activeBreak && !limitReached
+        submitBtn.isEnabled = store.enabled && !store.activeBreak && !limitReached
     }
 
     private fun submit() {
+        if (!store.enabled) return
         if (!UsageTracker.hasUsageAccess(this)) {
             Toast.makeText(this, R.string.break_needs_usage_access, Toast.LENGTH_LONG).show()
             startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
@@ -123,44 +108,11 @@ class BreakActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.breakResultText).text = text
     }
 
-    private fun startOfflineBreak() {
-        showResult(
-            if (store.startBreakLocally()) {
-                getString(R.string.break_result_offline_started, store.selectedBreakMinutes)
-            } else {
-                getString(R.string.break_result_limit_reached)
-            },
-        )
-    }
-
     private fun submitSimple() {
         setBusy(true)
-        showResult("")
-        lifecycleScope.launch {
-            try {
-                val resp = ApiClient.api.startBreak(
-                    Config.DEVICE_KEY,
-                    DeviceRequest(store.deviceId, store.selectedBreakMinutes),
-                )
-                val body = resp.body()
-                when {
-                    resp.isSuccessful && body != null -> {
-                        store.update(body)
-                        showResult(getString(R.string.break_result_started, store.selectedBreakMinutes))
-                    }
-                    resp.code() == 429 -> showResult(getString(R.string.break_result_limit_reached))
-                    else -> startOfflineBreak()
-                }
-            } catch (e: IOException) {
-                startOfflineBreak()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                startOfflineBreak()
-            } finally {
-                setBusy(false)
-                render()
-            }
-        }
+        showResult(if (store.startBreakLocally()) getString(R.string.break_result_started, store.selectedBreakMinutes)
+            else getString(R.string.break_result_limit_reached))
+        setBusy(false)
+        render()
     }
 }

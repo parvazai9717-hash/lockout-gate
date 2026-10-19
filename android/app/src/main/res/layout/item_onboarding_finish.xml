@@ -37,7 +37,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:gravity="center"
-            android:text="Setup Complete &amp; Protection Active!"
+            android:text="Ready to get started"
             android:textColor="@color/text_primary_light"
             android:textSize="22sp"
             android:textStyle="bold" />
@@ -47,7 +47,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:gravity="center"
-            android:text="Lockout Gate is now active and ready to enforce your focus sessions."
+            android:text="Blocking works when Accessibility is enabled. Check permission status on the main screen."
             android:textColor="@color/text_secondary_light"
             android:textSize="15sp" />
 
@@ -72,7 +72,7 @@
                     android:id="@+id/onboardingCheck1"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="✓ Blocking Service Configured"
+                    android:text="Review blocking permission on the main screen"
                     android:textColor="#16A34A"
                     android:textSize="14sp"
                     android:textStyle="bold" />
@@ -82,7 +82,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="✓ Screen Time Usage Tracker Active"
+                    android:text="Review Usage Access on the main screen"
                     android:textColor="#16A34A"
                     android:textSize="14sp"
                     android:textStyle="bold" />
@@ -92,7 +92,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="✓ Custom Blocklists Active"
+                    android:text="Choose the apps you want to block"
                     android:textColor="#16A34A"
                     android:textSize="14sp"
                     android:textStyle="bold" />

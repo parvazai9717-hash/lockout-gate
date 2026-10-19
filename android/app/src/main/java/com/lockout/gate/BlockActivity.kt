@@ -14,11 +14,14 @@ import androidx.appcompat.app.AppCompatActivity
  * brought to the front on top of the blocked app, the same technique most
  * Play Store app-blockers use.
  */
-class BlockActivity : AppCompatActivity() {
+class BlockActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_block)
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() { goHome() }
+        })
 
         val bgImageView = findViewById<ImageView>(R.id.customBackgroundImageView)
         val scrimView = findViewById<View>(R.id.backgroundScrimView)
@@ -41,8 +44,7 @@ class BlockActivity : AppCompatActivity() {
         }
     }
 
-    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION", "MissingSuperCall")
-    override fun onBackPressed() {
+    private fun goHome() {
         // Blocked means blocked — don't let the back gesture reveal the app underneath.
         val homeIntent = Intent(Intent.ACTION_MAIN).apply {
             addCategory(Intent.CATEGORY_HOME)

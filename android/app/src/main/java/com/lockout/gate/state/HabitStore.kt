@@ -19,10 +19,14 @@ data class Habit(val id: String, val name: String, val createdDate: LocalDate)
 class HabitStore(context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("habits", Context.MODE_PRIVATE)
+    private var cachedRaw: String? = null
+    private var cachedHabits: List<Habit> = emptyList()
 
     fun habits(): List<Habit> {
-        val raw = prefs.getString(KEY_HABITS, null) ?: return emptyList()
-        return try {
+        val raw = prefs.getString(KEY_HABITS, null)
+        if (raw == cachedRaw) return cachedHabits
+        cachedRaw = raw
+        cachedHabits = if (raw == null) emptyList() else try {
             val arr = JSONArray(raw)
             (0 until arr.length()).map { i ->
                 val o = arr.getJSONObject(i)
@@ -31,6 +35,7 @@ class HabitStore(context: Context) {
         } catch (e: Exception) {
             emptyList()
         }
+        return cachedHabits
     }
 
     private fun saveHabits(list: List<Habit>) {
@@ -54,7 +59,8 @@ class HabitStore(context: Context) {
     }
 
     private fun completions(): Set<String> =
-        prefs.getStringSet(KEY_DONE, emptySet())?.toSet() ?: emptySet()
+        // Read-only snapshot: never mutate Android's stored set. Updates below create new sets.
+        prefs.getStringSet(KEY_DONE, emptySet()) ?: emptySet()
 
     private fun key(habitId: String, date: LocalDate) = "$habitId|$date"
 
@@ -98,12 +104,13 @@ class HabitStore(context: Context) {
 
     /** Returns current streak in consecutive days for a habit. */
     fun habitStreak(habitId: String, today: LocalDate = LocalDate.now()): Int {
+        val done = completions()
         var streak = 0
         var checkDate = today
-        if (!isDone(habitId, today)) {
+        if (key(habitId, today) !in done) {
             checkDate = today.minusDays(1)
         }
-        while (isDone(habitId, checkDate)) {
+        while (key(habitId, checkDate) in done) {
             streak++
             checkDate = checkDate.minusDays(1)
         }

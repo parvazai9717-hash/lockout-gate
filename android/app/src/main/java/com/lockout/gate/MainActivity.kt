@@ -21,22 +21,18 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButtonToggleGroup
-import com.lockout.gate.network.ApiClient
-import com.lockout.gate.network.DeviceRequest
-import com.lockout.gate.network.HardLockStartRequest
-import com.lockout.gate.network.LockState
 import com.lockout.gate.state.SessionStore
 import kotlinx.coroutines.launch
-import retrofit2.Response
-import java.io.IOException
-import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Two tabs: "Lockout" (status + controls; all real enforcement happens in
  * AppBlockAccessibilityService) and "Habits" (daily checklist + monthly
  * progress grid).
  */
-class MainActivity : AppCompatActivity() {
+class MainActivity : BaseActivity() {
+    private val stateListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+        if (::habitController.isInitialized) runOnUiThread { renderStatus() }
+    }
 
     private lateinit var store: SessionStore
     private lateinit var statusText: TextView
@@ -45,8 +41,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var habitsScroll: View
 
     private val pickBackgroundMedia = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null && BackgroundHelper.saveCustomBackground(this, uri)) {
-            Toast.makeText(this, R.string.background_updated, Toast.LENGTH_SHORT).show()
+        if (uri != null) lifecycleScope.launch {
+            val saved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                BackgroundHelper.saveCustomBackground(this@MainActivity, uri)
+            }
+            Toast.makeText(this@MainActivity, if (saved) R.string.background_updated else R.string.photo_read_failed, Toast.LENGTH_SHORT).show()
             applyBackground()
         }
     }
@@ -98,16 +97,27 @@ class MainActivity : AppCompatActivity() {
             applyBackground()
         }
 
+        val privacy = Button(this).apply {
+            setText(R.string.privacy_title)
+            setOnClickListener { startActivity(Intent(this@MainActivity, PrivacyActivity::class.java)) }
+        }
+        (findViewById<View>(R.id.manageAppsButton).parent as? android.view.ViewGroup)?.addView(privacy)
         maybeRequestNotificationPermission()
         renderStatus()
     }
 
     override fun onResume() {
         super.onResume()
+        if (!::habitController.isInitialized) return
+        getSharedPreferences("lockout_session", MODE_PRIVATE).registerOnSharedPreferenceChangeListener(stateListener)
         applyBackground()
         renderStatus()
         habitController.render()
-        refreshFromServer()
+    }
+
+    override fun onPause() {
+        getSharedPreferences("lockout_session", MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(stateListener)
+        super.onPause()
     }
 
     private fun showTab(tab: Int) {
@@ -153,6 +163,11 @@ class MainActivity : AppCompatActivity() {
         val badgeText: String
         val badgeBgColor: Int
         when {
+            !isAccessibilityServiceEnabled() -> {
+                mainStatus = getString(R.string.service_inactive)
+                badgeText = getString(R.string.badge_disabled)
+                badgeBgColor = getColor(R.color.status_warning)
+            }
             !store.enabled -> {
                 mainStatus = getString(R.string.status_emergency_disabled)
                 badgeText = getString(R.string.badge_disabled)
@@ -180,7 +195,7 @@ class MainActivity : AppCompatActivity() {
         statusBadge.setBackgroundColor(badgeBgColor)
         breaksRemainingText.text = getString(R.string.status_breaks_remaining, store.breaksRemainingToday)
 
-        findViewById<TextView>(R.id.timeSavedValueText).text = formatSavedTime(store.timeSavedMsToday)
+        findViewById<TextView>(R.id.timeSavedValueText).text = store.blockedAttemptsToday.toString()
         findViewById<TextView>(R.id.breaksUsedValueText).text = store.breaksUsedToday.toString()
         findViewById<TextView>(R.id.streakValueText).text = getString(R.string.stat_days_format, store.streakDays)
 
@@ -212,23 +227,6 @@ class MainActivity : AppCompatActivity() {
         return if (hours > 0) "${hours}h ${mins}m" else "${mins}m"
     }
 
-    private fun refreshFromServer() {
-        lifecycleScope.launch {
-            try {
-                val resp = ApiClient.api.lockState(Config.DEVICE_KEY, store.deviceId)
-                val body = resp.body()
-                if (resp.isSuccessful && body != null) {
-                    store.update(body)
-                    renderStatus()
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                // Offline or unexpected response — keep showing the cached state.
-            }
-        }
-    }
-
     private fun promptHardLock() {
         val input = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_NUMBER
@@ -251,80 +249,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startHardLock(days: Int) {
-        lifecycleScope.launch {
-            try {
-                val resp = ApiClient.api.startHardLock(Config.DEVICE_KEY, HardLockStartRequest(store.deviceId, days))
-                val body = resp.body()
-                if (resp.isSuccessful && body != null) {
-                    store.update(body)
-                } else {
-                    store.hardLockActive = true
-                    store.hardLockDaysRemaining = days
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                store.hardLockActive = true
-                store.hardLockDaysRemaining = days
-            } finally {
-                renderStatus()
-                Toast.makeText(this@MainActivity, getString(R.string.hard_lock_started, days), Toast.LENGTH_LONG).show()
-            }
-        }
+        if (store.startHardLock(days)) toast(getString(R.string.hard_lock_started, days))
+        renderStatus()
     }
 
     private fun toggleEmergency() {
-        val goingToDisable = store.enabled
-        if (!goingToDisable) {
-            runEmergencyAction(goingToDisable = false)
-            return
-        }
-        if (!store.emergencyAvailable) {
-            toast(getString(R.string.emergency_already_used))
-            return
-        }
+        if (!store.enabled) { store.setProtection(true); renderStatus(); return }
         AlertDialog.Builder(this)
             .setTitle(R.string.emergency_confirm_title)
             .setMessage(R.string.emergency_confirm_message)
-            .setPositiveButton(R.string.emergency_confirm_yes) { _, _ -> runEmergencyAction(goingToDisable = true) }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
-
-    private fun runEmergencyAction(goingToDisable: Boolean) {
-        lifecycleScope.launch {
-            try {
-                val request = DeviceRequest(store.deviceId)
-                val resp: Response<LockState> = if (goingToDisable) {
-                    ApiClient.api.emergencyDisable(Config.DEVICE_KEY, request)
-                } else {
-                    ApiClient.api.emergencyEnable(Config.DEVICE_KEY, request)
-                }
-                val body = resp.body()
-                when {
-                    resp.isSuccessful && body != null -> store.update(body)
-                    resp.code() == 429 -> {
-                        store.emergencyAvailable = false
-                        toast(getString(R.string.emergency_already_used))
-                    }
-                    else -> toast(getString(R.string.emergency_failed, resp.code()))
-                }
-            } catch (e: IOException) {
-                // Re-enabling blocking offline is always allowed; disabling
-                // offline would dodge the once-a-month server check.
-                if (goingToDisable) {
-                    toast(getString(R.string.emergency_needs_internet))
-                } else {
-                    store.enabled = true
-                    toast(getString(R.string.emergency_enabled_offline))
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                toast(getString(R.string.emergency_failed, -1))
-            }
-            renderStatus()
-        }
+            .setPositiveButton(R.string.emergency_confirm_yes) { _, _ -> store.setProtection(false); renderStatus() }
+            .setNegativeButton(android.R.string.cancel, null).show()
     }
 
     private fun toast(text: String) {

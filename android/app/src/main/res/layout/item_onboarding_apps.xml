@@ -81,7 +81,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:lineSpacingExtra="4dp"
-                    android:text="• Standard Mode: Select/deselect apps anytime.\n• Permanent Strict Lock: Locked apps CANNOT be unselected once added!"
+                    android:text="• Standard Mode: Select/deselect apps anytime.\n• Committed Apps: Confirm your choices and remove apps whenever you need."
                     android:textColor="@color/text_secondary_light"
                     android:textSize="13sp" />
             </LinearLayout>

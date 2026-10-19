@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Lockout Gate</string>
-    <string name="accessibility_service_description">Lockout Gate uses this service to see which app is in the foreground, so it can block the apps you chose unless a break is active. Only while a hard lock you started is active, it also reads on-screen text in Settings and the app installer to stop Lockout Gate from being turned off or uninstalled until the lock ends. It does not collect, store, or share what is on your screen.</string>
+    <string name="accessibility_service_description">Detects the foreground app to block apps you select. Screen text is not read, saved or transmitted. You can disable this service or uninstall Lockout Gate at any time.</string>
 
     <string name="status_normal">Normal mode.</string>
     <string name="status_hard_lock">Hard lock active — %1$d day(s) remaining.</string>
@@ -14,8 +14,8 @@
 
     <string name="take_break">Take a break</string>
     <string name="hard_lock_button">Start hard lock</string>
-    <string name="emergency_disable">Emergency: disable blocking</string>
-    <string name="emergency_enable">Emergency: re-enable blocking</string>
+    <string name="emergency_disable">Pause blocking</string>
+    <string name="emergency_enable">Resume blocking</string>
     <string name="enable_accessibility">Enable blocking service</string>
     <string name="enable_usage_access">Enable usage access</string>
 
@@ -27,15 +27,12 @@
     <string name="hard_lock_started">Hard lock started for %1$d day(s).</string>
 
     <string name="emergency_confirm_title">Disable blocking?</string>
-    <string name="emergency_confirm_message">This turns off all blocking until you re-enable it. You can only do this once a month.</string>
+    <string name="emergency_confirm_message">Pause blocking until you choose to turn it back on. You remain in control and can also disable the service in Android Settings.</string>
     <string name="emergency_confirm_yes">Disable</string>
 
     <string name="break_info">%1$d break(s) left today, %2$d real minutes each.</string>
-    <string name="break_pick_photo">Choose photo</string>
     <string name="break_submit_simple">Start break</string>
-    <string name="break_submit_photo">Submit photo</string>
     <string name="break_result_started">Break started — %1$d real minutes on the watched apps.</string>
-    <string name="break_result_rejected">Rejected: %1$s</string>
     <string name="break_result_limit_reached">Daily break limit already reached.</string>
     <string name="break_needs_usage_access">Usage access is required so breaks can be tracked and expire correctly. Please enable it.</string>
 
@@ -62,29 +59,28 @@
     <string name="badge_disabled">OFF</string>
 
     <string name="label_analytics">ANALYTICS &amp; SAVINGS</string>
-    <string name="stat_time_saved_title">Saved Today</string>
+    <string name="stat_time_saved_title">Blocked Attempts</string>
     <string name="stat_breaks_used_title">Breaks Used</string>
-    <string name="stat_streak_title">Focus Streak</string>
+    <string name="stat_streak_title">Active Days</string>
     <string name="stat_days_format">%1$d Days</string>
 
     <string name="customize_background">Customize Background</string>
     <string name="reset_background">Reset Background</string>
-    <string name="background_updated">High-quality custom background applied!</string>
+    <string name="background_updated">Custom background applied.</string>
     <string name="background_reset">Reset to default theme background.</string>
 
     <string name="title_manage_apps">Manage Blocked Apps</string>
     <string name="btn_manage_apps">Manage Blocked Apps</string>
     <string name="tab_standard">Standard Mode</string>
-    <string name="tab_strict_permanent">Permanent Strict Mode</string>
-    <string name="strict_confirm_title">Lock App Permanently?</string>
-    <string name="strict_confirm_message">Are you sure you want to add %1$s to Permanent Lock? Once added, this app CANNOT be deselected or unblocked!</string>
-    <string name="strict_confirm_yes">Yes, Lock Permanently</string>
-    <string name="badge_permanent_lock">PERMANENT LOCK</string>
+    <string name="tab_strict_permanent">Committed Apps</string>
+    <string name="strict_confirm_title">Add to committed apps?</string>
+    <string name="strict_confirm_message">Add %1$s to your committed apps? You can remove it here at any time.</string>
+    <string name="strict_confirm_yes">Add app</string>
+    <string name="badge_permanent_lock">COMMITTED</string>
     <string name="label_break_duration">Break Duration</string>
     <string name="break_result_offline_started">Break started (Offline Mode) — %1$d real minutes on watched apps.</string>
-    <string name="photo_selected_format">Selected: %1$s (%2$d KB)</string>
     <string name="mode_desc_standard">STANDARD MODE: Select or deselect apps anytime.</string>
-    <string name="mode_desc_strict">PERMANENT LOCK MODE: Selected apps CANNOT be unselected or removed once added!</string>
+    <string name="mode_desc_strict">COMMITTED APPS: An extra confirmation helps you make an intentional choice. You can always remove an app.</string>
 
     <string name="notification_channel_description">Shows the remaining time during an active break</string>
 
@@ -93,22 +89,13 @@
     <string name="permission_granted">Enabled</string>
 
     <string name="accessibility_disclosure_title">Why Lockout Gate needs Accessibility</string>
-    <string name="accessibility_disclosure_message">Lockout Gate uses the Accessibility service to detect which app is open, so it can block the apps you chose when no break is active.\n\nOnly during a hard lock that you start yourself, it also reads text on the Settings and app-installer screens to stop the service being turned off or the app being uninstalled until the lock ends.\n\nScreen content is checked on your phone only. It is never stored or sent anywhere.</string>
+    <string name="accessibility_disclosure_message">Lockout Gate uses Accessibility to detect which app is open and show a blocking screen for the apps you select. It does not read screen text, messages or passwords. App selections and usage stay on your phone; nothing is sent to a server.\n\nYou can turn off the service or uninstall the app at any time. Usage Access separately measures time spent in selected apps.</string>
     <string name="accessibility_disclosure_agree">Agree and continue</string>
     <string name="accessibility_disclosure_decline">Not now</string>
 
-    <string name="hard_lock_failed">Could not start hard lock (server error %1$d).</string>
-    <string name="hard_lock_needs_internet">Starting a hard lock needs an internet connection.</string>
 
-    <string name="emergency_already_used">Emergency disable was already used this month.</string>
-    <string name="emergency_failed">Emergency switch failed (error %1$d).</string>
-    <string name="emergency_needs_internet">Disabling blocking needs an internet connection.</string>
-    <string name="emergency_enabled_offline">Blocking re-enabled (offline).</string>
 
     <string name="break_info_already_active">A break is already active.</string>
-    <string name="break_result_hard_lock_needs_photo">A hard lock is active, so this break needs a photo of you eating.</string>
-    <string name="break_result_server_error">Server error (%1$d). Please try again.</string>
-    <string name="break_result_photo_needs_internet">Checking your photo needs an internet connection.</string>
     <string name="break_result_unexpected">Something went wrong. Please try again.</string>
     <string name="photo_read_failed">Could not read that photo. Please pick another one.</string>
 
@@ -131,4 +118,7 @@
     <string name="habits_next_symbol">›</string>
     <string name="habits_grid_hint" formatted="false">Tap a day to tick or untick it. The bottom row is each day\'s %.</string>
     <string name="habits_grid_daily_pct" formatted="false">Daily %</string>
+    <string name="service_inactive">Blocking service is off. Enable it below to protect selected apps.</string>
+    <string name="privacy_title">Privacy &amp; Help</string>
+    <string name="privacy_body">Lockout Gate — Privacy &amp; Help\nUpdated 19 October 2026\n\nThis preview works entirely on your phone. No account, ads, analytics SDK, AI service, payments or server connection is used.\n\nAccessibility detects foreground app package names to show your chosen block screen. It does not retrieve screen text, messages or passwords. Usage Access reads app activity events to count break time. Selected apps, habits and their history stay in private app storage. An optional background image is copied into private app storage. Notifications show remaining break time.\n\nYou may refuse permissions, pause protection, change selected apps, disable the service in Android Settings or uninstall at any time. Without Accessibility, app blocking cannot operate. Without Usage Access, breaks cannot be measured reliably. Some phone manufacturers may stop background services.\n\nTo remove all local data, clear app storage or uninstall. This cannot be undone. There is no cloud backup. This is a self-control aid, not parental control, a security lock or an emergency restriction. Always keep emergency calls and important system apps available.\n\nA future paid or advertising version will require a separate update and revised disclosures. No payment will begin automatically.\n\nSupport: parvazai9717@gmail.com</string>
 </resources>

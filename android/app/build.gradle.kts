@@ -5,25 +5,24 @@ plugins {
 
 android {
     namespace = "com.lockout.gate"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.lockout.gate"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        targetSdk = 36
+        versionCode = 2
+        versionName = "0.2.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Same secret as the server's LOCKOUT_DEVICE_KEY env var, and the
-        // server's base URL. Edit these for your own deployment before
-        // building — see Config.kt for the single source of truth used at
-        // runtime (these just seed its defaults).
-        // Must end with a trailing slash — Retrofit requires it.
-        buildConfigField("String", "SERVER_BASE_URL", "\"https://lockout-gate-lockout-gate.qt5ga9.easypanel.host/\"")
-        buildConfigField("String", "DEVICE_KEY", "\"97931aeac1fe752665cf6ffb950e31e48fde30234bd44e64\"")
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".preview"
+            versionNameSuffix = "-preview"
+            resValue("string", "app_name", "Lockout Gate Preview")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -53,9 +52,8 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
 
-    implementation("com.squareup.retrofit2:retrofit:2.11.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation("io.coil-kt:coil:2.6.0")
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
 }

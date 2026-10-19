@@ -12,32 +12,21 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
-import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
-import com.lockout.gate.network.ApiClient
-import com.lockout.gate.network.BreakReportRequest
 import com.lockout.gate.state.SessionStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import android.os.SystemClock
+import android.os.PowerManager
 
-/**
- * Detects the foreground app by package name and, if it's on the blocklist
- * while no break is active, immediately brings BlockActivity to the front.
- *
- * While a break IS active, periodically reports real foreground usage of the
- * watched apps to the server so the break budget is real usage time, not a
- * wall-clock countdown — the server decides when it's used up.
- *
- * During a hard lock the user explicitly opted into, also bounces to the
- * home screen when Settings' per-app accessibility toggle or the uninstall
- * dialog for this app is showing. ADB from a PC always still works.
- */
+/** Local app blocking. The user may always disable the service or uninstall the app. */
 class AppBlockAccessibilityService : AccessibilityService() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -46,6 +35,8 @@ class AppBlockAccessibilityService : AccessibilityService() {
     private var lastForegroundPackage: String? = null
     private var isScreenInteractive = true
     private var receiverRegistered = false
+    private var refreshJob: Job? = null
+    private var lastBlockAt = 0L
 
     private val screenStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -74,9 +65,9 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        ApiClient.init(this)
         store = SessionStore(this)
         createNotificationChannel()
+        isScreenInteractive = getSystemService(PowerManager::class.java).isInteractive
 
         if (!receiverRegistered) {
             val filter = IntentFilter().apply {
@@ -97,7 +88,10 @@ class AppBlockAccessibilityService : AccessibilityService() {
         if (!::store.isInitialized) return
         try {
             val pkg = event.packageName?.toString() ?: return
-            if (pkg == packageName) return // never block ourselves
+            if (pkg == packageName) {
+                lastForegroundPackage = pkg
+                return // Do not repeatedly count the blocker itself as another attempt.
+            }
 
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
                 lastForegroundPackage = pkg
@@ -107,121 +101,21 @@ class AppBlockAccessibilityService : AccessibilityService() {
                 }
             }
 
-            if (store.selfProtectionActive()) {
-                checkSelfProtection(pkg, event)
-            }
+
         } catch (e: Exception) {
             Log.e(TAG, "Error in onAccessibilityEvent", e)
         }
     }
 
     private fun blockNow() {
-        store.addSavedTime(5 * 60_000L)
+        val now = SystemClock.elapsedRealtime()
+        if (now-lastBlockAt < 1_000L) return
+        lastBlockAt = now
+        store.recordBlockedAttempt()
         val intent = Intent(this, BlockActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         startActivity(intent)
-    }
-
-    /**
-     * Prevents turning off Accessibility, turning off Usage Access, or uninstalling
-     * Lockout Gate directly from the phone. All other apps, settings, and permissions
-     * remain fully accessible.
-     */
-    private fun checkSelfProtection(pkg: String, event: AccessibilityEvent) {
-        if (pkg == packageName) return // Never block Lockout Gate itself!
-        if (store.isFirstRun || !store.selfProtectionActive()) return
-        val root = rootInActiveWindow ?: return
-
-        // Never bounce when the initial permission grant dialog is showing
-        if (nodeTreeContainsText(root, "Allow Lockout Gate", 0)) return
-
-        val appLabel = getString(R.string.app_name)
-        val hasOwnLabel = nodeTreeContainsText(root, appLabel, 0)
-        if (!hasOwnLabel) return
-
-        // 1. Uninstall attempt (Package installer, Play Store, Launcher, or Settings App Info)
-        val isUninstallPackage = pkg == "com.google.android.packageinstaller" ||
-            pkg == "com.android.packageinstaller" ||
-            pkg == "com.google.android.vending" ||
-            pkg == "com.android.settings" ||
-            pkg.contains("launcher") ||
-            pkg.contains("home")
-
-        val isUninstallAttempt = isUninstallPackage &&
-            (nodeTreeContainsText(root, "Uninstall", 0) ||
-             nodeTreeContainsText(root, "Do you want to uninstall", 0) ||
-             nodeTreeContainsText(root, "Delete app", 0))
-
-        // 2. Settings self-protection
-        val isSettingsPage = pkg == "com.android.settings"
-        val isAppDetailScreen = !isAppList(root)
-        val isSwitchOff = nodeTreeContainsText(root, "Off", 0) && !nodeTreeContainsText(root, "On", 0)
-
-        // EXACT Accessibility protection restored from commit c50e243:
-        val isAccessibilityDisable = isSettingsPage && isAppDetailScreen && !isSwitchOff &&
-            (nodeTreeContainsText(root, "Stop Lockout Gate", 0) ||
-             nodeTreeContainsText(root, "Turn off", 0) ||
-             nodeTreeContainsText(root, "Disable", 0) ||
-             nodeTreeContainsText(root, "Accessibility", 0))
-
-        // Targeted Usage Access protection for both detail screen and list row clicks:
-        val isUsageAccessPage = isSettingsPage &&
-            (nodeTreeContainsText(root, "Usage access", 0) ||
-             nodeTreeContainsText(root, "Usage data access", 0) ||
-             nodeTreeContainsText(root, "Permit usage tracking", 0) ||
-             nodeTreeContainsText(root, "Usage statistics", 0))
-
-        val eventSource = event.source
-        val clickedLockoutRow = eventSource != null && nodeTreeContainsText(eventSource, appLabel, 0)
-
-        val isUsageAccessDisable = isUsageAccessPage &&
-            ((isAppDetailScreen && !isSwitchOff) || clickedLockoutRow)
-
-        val shouldBounce = isUninstallAttempt || isAccessibilityDisable || isUsageAccessDisable
-
-        if (shouldBounce) {
-            performGlobalAction(GLOBAL_ACTION_HOME)
-        }
-    }
-
-    private fun isAppList(node: AccessibilityNodeInfo?): Boolean {
-        if (node == null) return false
-        return countChildItems(node, 0) > 3
-    }
-
-    private fun countChildItems(node: AccessibilityNodeInfo?, depth: Int): Int {
-        if (node == null || depth > MAX_NODE_DEPTH) return 0
-        var count = 0
-        val className = node.className?.toString()
-        if (className != null && (className.contains("RecyclerView") || className.contains("ListView"))) {
-            if (node.childCount > 3) return node.childCount
-        }
-        for (i in 0 until node.childCount) {
-            count += countChildItems(node.getChild(i), depth + 1)
-            if (count > 3) return count
-        }
-        return count
-    }
-
-    private fun nodeTreeContainsText(node: AccessibilityNodeInfo?, needle: String, depth: Int): Boolean {
-        if (node == null || depth > MAX_NODE_DEPTH) return false
-        val text = node.text?.toString() ?: node.contentDescription?.toString()
-        if (text != null && text.contains(needle, ignoreCase = true)) return true
-        for (i in 0 until node.childCount) {
-            if (nodeTreeContainsText(node.getChild(i), needle, depth + 1)) return true
-        }
-        return false
-    }
-
-    private fun nodeTreeHasSwitch(node: AccessibilityNodeInfo?, depth: Int): Boolean {
-        if (node == null || depth > MAX_NODE_DEPTH) return false
-        val className = node.className?.toString()
-        if (className != null && className.contains("Switch", ignoreCase = true)) return true
-        for (i in 0 until node.childCount) {
-            if (nodeTreeHasSwitch(node.getChild(i), depth + 1)) return true
-        }
-        return false
     }
 
     override fun onInterrupt() {}
@@ -301,109 +195,40 @@ class AppBlockAccessibilityService : AccessibilityService() {
         }
     }
 
-    /**
-     * Refreshes lock state from the server, and — if a break is active —
-     * reports real foreground usage of the watched apps since the last
-     * checkpoint. When the server is unreachable, the break is expired
-     * locally once the selected budget is used up.
-     */
+    /** Account selected-app usage locally; keep one measurement in flight. */
     private fun refreshAndReport() {
-        scope.launch {
+        if (refreshJob?.isActive == true) return
+        refreshJob = scope.launch {
             try {
-                val blockedPkgs = store.getAllBlockedPackages()
                 if (store.activeBreak) {
-                    reportActiveBreak(blockedPkgs)
-                } else {
-                    cancelBreakNotification()
-                    if (store.isLocked()) store.addSavedTime(Config.STATE_REFRESH_INTERVAL_MS)
-                    val resp = ApiClient.api.lockState(Config.DEVICE_KEY, store.deviceId)
-                    val body = resp.body()
-                    if (resp.isSuccessful && body != null) store.update(body)
+                    val breakId = store.breakId
+                    val now = System.currentTimeMillis()
+                    val checkpoint = store.usageCheckpointMs
+                    if (UsageTracker.hasUsageAccess(applicationContext)) {
+                        val delta = UsageTracker.foregroundMsBetween(applicationContext, store.getAllBlockedPackages(), checkpoint, now)
+                        store.accountUsage(delta, now, SystemClock.elapsedRealtime(), breakId)
+                    } else {
+                        // Tracking permission was revoked: do not silently grant an unlimited break.
+                        store.endBreakLocally()
+                    }
                 }
-
+                if (store.activeBreak) {
+                    updateBreakNotification(store.breakRemainingMs)
+                    checkPreBlockWarnings(store.breakRemainingMs)
+                } else cancelBreakNotification()
                 val fg = lastForegroundPackage
-                if (fg != null && fg in blockedPkgs && store.isLocked()) {
-                    handler.post { blockNow() }
-                }
+                if (fg != null && fg in store.getAllBlockedPackages() && store.isLocked()) handler.post { blockNow() }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
-                Log.w(TAG, "refreshAndReport failed", e)
+                Log.w(TAG, "Local accounting failed", e)
             }
         }
-    }
-
-    private suspend fun reportActiveBreak(blockedPkgs: Set<String>) {
-        val now = System.currentTimeMillis()
-        val checkpoint = store.usageCheckpointMs
-        if (checkpoint <= 0L || checkpoint > now) {
-            store.usageCheckpointMs = now
-            return
-        }
-        val delta = if (UsageTracker.hasUsageAccess(applicationContext)) {
-            UsageTracker.foregroundMsBetween(applicationContext, blockedPkgs, checkpoint, now)
-        } else {
-            now - checkpoint
-        }
-
-        val budgetMs = store.selectedBreakMinutes * 60_000L
-        store.usageCheckpointMs = now
-        store.cumulativeBreakUsageMs += delta
-
-        // If break budget is exhausted, end the break immediately and block foreground app
-        if (store.cumulativeBreakUsageMs >= budgetMs) {
-            store.endBreakLocally()
-            cancelBreakNotification()
-            val fg = lastForegroundPackage
-            if (fg != null && fg in blockedPkgs && store.isLocked()) {
-                handler.post { blockNow() }
-            }
-            return
-        }
-
-        var serverAnswered = false
-        try {
-            val resp = ApiClient.api.reportBreakUsage(
-                Config.DEVICE_KEY,
-                BreakReportRequest(store.deviceId, delta),
-            )
-            val body = resp.body()
-            if (resp.isSuccessful && body != null) {
-                serverAnswered = true
-                store.update(body)
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Break report failed; using offline budget", e)
-        }
-
-        if (!store.activeBreak) {
-            cancelBreakNotification()
-            val fg = lastForegroundPackage
-            if (fg != null && fg in blockedPkgs && store.isLocked()) {
-                handler.post { blockNow() }
-            }
-            return
-        }
-
-        val remainingMs = store.serverBreakRemainingMs.takeIf { serverAnswered && it > 0L }
-            ?: (budgetMs - store.cumulativeBreakUsageMs).coerceAtLeast(0L)
-
-        if (remainingMs <= 0L) {
-            store.endBreakLocally()
-            cancelBreakNotification()
-            val fg = lastForegroundPackage
-            if (fg != null && fg in blockedPkgs && store.isLocked()) {
-                handler.post { blockNow() }
-            }
-            return
-        }
-
-        updateBreakNotification(remainingMs)
-        checkPreBlockWarnings(remainingMs)
     }
 
     companion object {
         private const val TAG = "AppBlockService"
         private const val NOTIFICATION_CHANNEL_ID = "lockout_break_channel"
         private const val BREAK_NOTIFICATION_ID = 1001
-        private const val MAX_NODE_DEPTH = 50
     }
 }
