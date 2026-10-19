@@ -166,7 +166,7 @@ class FocusTabController(
                 )
                 val body = resp.body()
                 if (resp.isSuccessful && body != null) {
-                    store.updateFocus(body)
+                    store.updateFocus(body,allowStart=true)
                     activity.startActivity(Intent(activity, FocusLockActivity::class.java))
                 } else {
                     Toast.makeText(activity, R.string.focus_start_failed, Toast.LENGTH_LONG).show()

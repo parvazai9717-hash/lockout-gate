@@ -10,7 +10,7 @@ import com.lockout.gate.network.FocusState
 import com.lockout.gate.FocusClock
 import kotlin.math.ceil
 
-/** Local-only release state. No network response can resurrect an expired break. */
+/** Local break state and a cached server focus deadline. */
 class SessionStore(context: Context) {
     private val appContext = context.applicationContext
     private fun bootCount(): Int = android.provider.Settings.Global.getInt(appContext.contentResolver, "boot_count", 0)
@@ -155,12 +155,15 @@ class SessionStore(context: Context) {
         prefs.getInt("focus_boot_count",-1), bootCount(), System.currentTimeMillis(), SystemClock.elapsedRealtime())
     fun focusActive() = focusRemainingMs() > 0L
     fun focusEndsAtWall() = prefs.getLong("focus_end_wall_ms",0)
-    fun updateFocus(state: FocusState, allowEarlyEnd: Boolean = false) = synchronized(LOCK) {
+    fun updateFocus(state: FocusState, allowEarlyEnd: Boolean = false, allowStart: Boolean = false) = synchronized(LOCK) {
         val previousNow=prefs.getLong("focus_server_now",0)
         if (state.server_now < previousNow) return@synchronized
+        // A delayed poll from the same server second must not undo an admin exit.
+        if (state.active && !allowStart && state.server_now <= prefs.getLong("focus_admin_cleared_at",0)) return@synchronized
         if (!state.active && !allowEarlyEnd && state.server_now == previousNow && focusActive()) return@synchronized
         if (!state.active || state.remaining_s <= 0) {
             prefs.edit().putLong("focus_end_wall_ms",0).putLong("focus_end_elapsed_ms",0)
+                .apply { if (allowEarlyEnd) putLong("focus_admin_cleared_at",state.server_now) }
                 .putLong("focus_server_now",state.server_now).commit()
         } else {
             val remaining=state.remaining_s.coerceIn(0,Config.MAX_FOCUS_MINUTES*60)*1000L

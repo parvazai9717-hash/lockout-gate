@@ -107,4 +107,14 @@ class SessionStoreTest {
         store.updateFocus(com.lockout.gate.network.FocusState(false,0,0,0,10));assertTrue(store.focusActive())
         store.updateFocus(com.lockout.gate.network.FocusState(false,0,0,0,10),allowEarlyEnd=true);assertFalse(store.focusActive())
     }
+    @Test fun staleActivePollCannotUndoAdminExitButExplicitNewStartWorks() {
+        val store=SessionStore(context)
+        val active=com.lockout.gate.network.FocusState(true,10,70,60,10)
+        store.updateFocus(active)
+        store.updateFocus(com.lockout.gate.network.FocusState(false,0,0,0,10),allowEarlyEnd=true)
+        SessionStore(context).updateFocus(active)
+        assertFalse(store.focusActive())
+        store.updateFocus(active,allowStart=true)
+        assertTrue(store.focusActive())
+    }
 }
