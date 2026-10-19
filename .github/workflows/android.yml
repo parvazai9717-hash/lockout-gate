@@ -1,11 +1,15 @@
 name: Android candidate
 on:
   push:
+    branches: ['main']
     paths: ['android/**', '.github/workflows/android.yml']
   pull_request:
     paths: ['android/**', '.github/workflows/android.yml']
 permissions:
   contents: read
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   validate:
     runs-on: ubuntu-latest
