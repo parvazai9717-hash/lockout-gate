@@ -125,7 +125,7 @@
     <string name="focus_subtitle">Lock your phone down to calls and WhatsApp for as long as you choose.</string>
     <string name="focus_status_idle">Not locked. Pick a duration below.</string>
     <string name="focus_status_active">Locked until %1$s.</string>
-    <string name="focus_setup_needed">Turn on the blocking service first â€” without it the lock can\'t be enforced.</string>
+    <string name="focus_setup_needed">Turn on the blocking service first. Without it the lock can\'t be enforced.</string>
     <string name="focus_presets_label">Quick presets</string>
     <string name="focus_custom_label">Or set your own time</string>
     <string name="focus_custom_hint">Amount</string>
@@ -153,8 +153,8 @@
     <string name="focus_end_confirm">End lock</string>
     <string name="focus_end_wrong_key">Wrong admin key.</string>
     <string name="focus_end_throttled">Too many wrong keys. Try again in a few minutes.</string>
-    <string name="focus_end_server_error">Server error â€” the lock is still on.</string>
-    <string name="focus_end_offline">Can\'t reach the server â€” the lock is still on.</string>
+    <string name="focus_end_server_error">Server error. The lock is still on.</string>
+    <string name="focus_end_offline">Can\'t reach the server. The lock is still on.</string>
     <string name="focus_finished">Focus lock finished.</string>
     <string name="pause_allowance">Pause blocking (%1$d left this month)</string>
     <string name="pause_exhausted">Monthly pause allowance is used up, or Keep Me Out is active.</string>
