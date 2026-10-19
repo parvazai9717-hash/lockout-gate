@@ -1,41 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Lockout Gate</string>
-    <string name="accessibility_service_description">Watches which app is in the foreground so Lockout Gate can block time-wasting apps unless a break is active. Also protects itself: reads on-screen text only within Settings and the Package Installer, to detect and bounce out of attempts to disable this service or uninstall this app from the phone (use a PC with ADB instead).</string>
+    <string name="accessibility_service_description">Detects the foreground app to block apps you select. Screen text is not read, saved or transmitted. You can disable this service or uninstall Lockout Gate at any time.</string>
 
     <string name="status_normal">Normal mode.</string>
-    <string name="status_hard_lock">Hard lock active — %1$d day(s) remaining.</string>
-    <string name="status_emergency_disabled">Emergency disabled — blocking is OFF.</string>
+    <string name="status_hard_lock">Hard lock active â€” %1$d day(s) remaining.</string>
+    <string name="status_emergency_disabled">Blocking paused. Resume when ready.</string>
     <string name="status_locked">Locked.</string>
     <string name="status_unlocked_now">Unlocked right now (break active).</string>
     <string name="status_breaks_remaining">Breaks remaining today: %1$d</string>
     <string name="status_usage_access_ok">Usage access: granted.</string>
-    <string name="status_usage_access_missing">Usage access: MISSING — breaks can\'t be tracked. Tap "Enable usage access" below.</string>
+    <string name="status_usage_access_missing">Usage access: MISSING â€” breaks can\'t be tracked. Tap "Enable usage access" below.</string>
 
     <string name="take_break">Take a break</string>
     <string name="hard_lock_button">Start hard lock</string>
-    <string name="emergency_disable">Emergency: disable blocking</string>
-    <string name="emergency_enable">Emergency: re-enable blocking</string>
+    <string name="emergency_disable">Pause blocking</string>
+    <string name="emergency_enable">Resume blocking</string>
     <string name="enable_accessibility">Enable blocking service</string>
     <string name="enable_usage_access">Enable usage access</string>
 
     <string name="hard_lock_title">Start hard lock</string>
-    <string name="hard_lock_message">Chrome, Instagram, YouTube, and Facebook will be hard-blocked. How many days?</string>
+    <string name="hard_lock_message">Your selected apps will be hard-blocked, with 1 break allowed per day. Protection is enforced on-device. How many days (1 to 90)?</string>
     <string name="hard_lock_days_hint">Number of days</string>
     <string name="hard_lock_confirm">Start</string>
-    <string name="hard_lock_invalid_days">Enter a valid number of days</string>
+    <string name="hard_lock_invalid_days">Enter a number of days from 1 to 90</string>
     <string name="hard_lock_started">Hard lock started for %1$d day(s).</string>
 
-    <string name="emergency_confirm_title">Disable blocking?</string>
-    <string name="emergency_confirm_message">This turns off all blocking until you re-enable it. You can only do this once a month.</string>
-    <string name="emergency_confirm_yes">Disable</string>
+    <string name="emergency_confirm_title">Use a monthly pause?</string>
+    <string name="emergency_confirm_message">You have %1$d pauses left this month. This uses one pause. Resuming does not refund it. Keep Me Out cannot be paused.</string>
+    <string name="emergency_confirm_yes">Use one pause</string>
 
     <string name="break_info">%1$d break(s) left today, %2$d real minutes each.</string>
-    <string name="break_pick_photo">Choose photo</string>
     <string name="break_submit_simple">Start break</string>
-    <string name="break_submit_photo">Submit photo</string>
-    <string name="break_result_started">Break started — %1$d real minutes on the watched apps.</string>
-    <string name="break_result_rejected">Rejected: %1$s</string>
+    <string name="break_result_started">Break started â€” %1$d real minutes on the watched apps.</string>
     <string name="break_result_limit_reached">Daily break limit already reached.</string>
     <string name="break_needs_usage_access">Usage access is required so breaks can be tracked and expire correctly. Please enable it.</string>
 
@@ -43,4 +40,123 @@
     <string name="block_message">Blocked. Take a break to unlock, or go back.</string>
     <string name="block_eating_break">Take a break</string>
     <string name="block_back_to_work">Back to home screen</string>
+
+    <string name="notification_channel_name">Break Status</string>
+    <string name="notification_break_title">Break Active</string>
+    <string name="notification_break_content">Remaining break budget: %1$d min %2$d sec</string>
+    <string name="warning_5_minutes">Lockout Gate: 5 minutes remaining in your break!</string>
+    <string name="warning_1_minute">Lockout Gate: 1 minute remaining in your break!</string>
+
+    <string name="app_subtitle">Focus &amp; App Lockout Enforcement</string>
+    <string name="label_protection_state">PROTECTION STATE</string>
+    <string name="label_required_permissions">REQUIRED PERMISSIONS</string>
+    <string name="label_accessibility_service">Accessibility Service</string>
+    <string name="label_usage_stats_access">Usage Stats Access</string>
+    <string name="label_controls">CONTROLS</string>
+    <string name="badge_locked">LOCKED</string>
+    <string name="badge_unlocked">BREAK ACTIVE</string>
+    <string name="badge_hard_lock">HARD LOCK</string>
+    <string name="badge_disabled">OFF</string>
+
+    <string name="label_analytics">ANALYTICS &amp; SAVINGS</string>
+    <string name="stat_time_saved_title">Blocked Attempts</string>
+    <string name="stat_breaks_used_title">Breaks Used</string>
+    <string name="stat_streak_title">Active Days</string>
+    <string name="stat_days_format">%1$d Days</string>
+
+    <string name="customize_background">Customize Background</string>
+    <string name="reset_background">Reset Background</string>
+    <string name="background_updated">Custom background applied.</string>
+    <string name="background_reset">Reset to default theme background.</string>
+
+    <string name="title_manage_apps">Manage Blocked Apps</string>
+    <string name="btn_manage_apps">Manage Blocked Apps</string>
+    <string name="tab_standard">Standard Mode</string>
+    <string name="tab_strict_permanent">Permanent Mode</string>
+    <string name="strict_confirm_title">Permanently select this app?</string>
+    <string name="strict_confirm_message">%1$s cannot be unchecked inside Lockout Gate after you confirm. This does not prevent Android from disabling or uninstalling Lockout Gate.</string>
+    <string name="strict_confirm_yes">Confirm permanent selection</string>
+    <string name="badge_permanent_lock">PERMANENT</string>
+    <string name="label_break_duration">Break Duration</string>
+    <string name="break_result_offline_started">Break started (Offline Mode) â€” %1$d real minutes on watched apps.</string>
+    <string name="mode_desc_standard">STANDARD MODE: Select or deselect apps anytime.</string>
+    <string name="mode_desc_strict">PERMANENT MODE: Once confirmed, an app cannot be removed from this list inside Lockout Gate.</string>
+
+    <string name="notification_channel_description">Shows the remaining time during an active break</string>
+
+    <string name="tab_lockout">Lockout</string>
+    <string name="tab_habits">Habits</string>
+    <string name="permission_granted">Enabled</string>
+
+    <string name="accessibility_disclosure_title">Why Lockout Gate needs Accessibility</string>
+    <string name="accessibility_disclosure_message">Lockout Gate detects the foreground app to block selected apps, or restrict your phone to calls and WhatsApp during Keep Me Out. It does not retrieve screen text, messages or passwords. Your app list and habits stay on your phone. Keep Me Out sends a device identifier and lock requests to your configured server.\n\nYou may disable Accessibility or uninstall through Android Settings.</string>
+    <string name="accessibility_disclosure_agree">Agree and continue</string>
+    <string name="accessibility_disclosure_decline">Not now</string>
+
+
+
+    <string name="break_info_already_active">A break is already active.</string>
+    <string name="break_result_unexpected">Something went wrong. Please try again.</string>
+    <string name="photo_read_failed">Could not read that photo. Please pick another one.</string>
+
+    <string name="habits_label_today">TODAY\'S CHECKLIST</string>
+    <string name="habits_label_monthly">MONTHLY PROGRESS</string>
+    <string name="habits_today_progress">%1$d of %2$d done Â· %3$d%%</string>
+    <string name="habits_month_progress">%1$d%% complete (%2$d of %3$d checks)</string>
+    <string name="habits_row_month_pct">%1$d%% this month</string>
+    <string name="habits_add_hint">New habit, e.g. Read 20 pages</string>
+    <string name="habits_add_button">Add</string>
+    <string name="habits_empty">No habits yet. Add one above, then tick it off each day.</string>
+    <string name="habits_name_required">Type a habit name first.</string>
+    <string name="habits_duplicate">You already have that habit.</string>
+    <string name="habits_delete_title">Delete habit</string>
+    <string name="habits_delete_message">Delete \"%1$s\" and all its history?</string>
+    <string name="habits_delete_yes">Delete</string>
+    <string name="habits_prev_month">Previous month</string>
+    <string name="habits_next_month">Next month</string>
+    <string name="habits_prev_symbol">â€¹</string>
+    <string name="habits_next_symbol">â€º</string>
+    <string name="habits_grid_hint" formatted="false">Tap a day to tick or untick it. The bottom row is each day\'s %.</string>
+    <string name="habits_grid_daily_pct" formatted="false">Daily %</string>
+    <string name="service_inactive">Blocking service is off. Enable it below to protect selected apps.</string>
+    <string name="privacy_title">Privacy &amp; Help</string>
+    <string name="privacy_body">Lockout Gate — Privacy &amp; Help\nUpdated 19 October 2026\n\nApp selections, habits, usage counters and background pictures are stored on your phone. Keep Me Out connects to your configured server using HTTPS. It sends a device identifier, authentication credential, requested duration and early-exit requests. The server stores the lock end time. An admin key is sent only when you enter it to end a lock; the app does not save that key. No ads, purchases, remote AI or analytics are included.\n\nAccessibility identifies foreground app packages; it does not retrieve screen text. Usage Access measures selected-app break time. Two pauses are allowed per calendar month; resuming does not refund a pause. Permanent selections cannot be unchecked inside this app. Keep Me Out allows calls, WhatsApp and essential system functions, including Android Settings. You may still disable permissions, clear storage or uninstall through Android. Those actions can defeat on-device enforcement.\n\nThe server configuration is currently a personal preview. Public launch requires per-user authentication, recovery and the final hosted privacy policy.\n\nSupport: parvazai9717@gmail.com</string>
+    <string name="tab_keep_me_out">Keep Me Out</string>
+    <string name="focus_subtitle">Lock your phone down to calls and WhatsApp for as long as you choose.</string>
+    <string name="focus_status_idle">Not locked. Pick a duration below.</string>
+    <string name="focus_status_active">Locked until %1$s.</string>
+    <string name="focus_setup_needed">Turn on the blocking service first â€” without it the lock can\'t be enforced.</string>
+    <string name="focus_presets_label">Quick presets</string>
+    <string name="focus_custom_label">Or set your own time</string>
+    <string name="focus_custom_hint">Amount</string>
+    <string name="unit_minutes">Minutes</string>
+    <string name="unit_hours">Hours</string>
+    <string name="unit_days">Days</string>
+    <string name="focus_start">Lock me out</string>
+    <string name="focus_footnote">Only the server can end a lock early, and only with your admin key. Breaks and the emergency switch don\'t work during a focus lock.</string>
+    <string name="focus_pick_duration">Pick a duration first.</string>
+    <string name="focus_too_long">That\'s longer than the 60-day maximum.</string>
+    <string name="focus_confirm_title">Lock your phone?</string>
+    <string name="focus_confirm_message">Until %1$s you\'ll only be able to use Phone and WhatsApp. Ending early needs your admin key.</string>
+    <string name="focus_confirm_yes">Lock me out</string>
+    <string name="focus_start_failed">Could not start the lock (server error).</string>
+    <string name="focus_start_offline">Can\'t reach the server. A lock has to start on the server\'s clock, so connect and try again.</string>
+    <string name="focus_lock_title">Keep Me Out</string>
+    <string name="focus_lock_until">Until %1$s</string>
+    <string name="focus_phone">Phone</string>
+    <string name="focus_whatsapp">WhatsApp</string>
+    <string name="focus_whatsapp_missing">WhatsApp isn\'t installed.</string>
+    <string name="focus_end_early">End early (admin key)</string>
+    <string name="focus_end_title">End the lock early</string>
+    <string name="focus_end_message">Enter your admin key. It isn\'t saved on this phone.</string>
+    <string name="focus_admin_key_hint">Admin key</string>
+    <string name="focus_end_confirm">End lock</string>
+    <string name="focus_end_wrong_key">Wrong admin key.</string>
+    <string name="focus_end_throttled">Too many wrong keys. Try again in a few minutes.</string>
+    <string name="focus_end_server_error">Server error â€” the lock is still on.</string>
+    <string name="focus_end_offline">Can\'t reach the server â€” the lock is still on.</string>
+    <string name="focus_finished">Focus lock finished.</string>
+    <string name="pause_allowance">Pause blocking (%1$d left this month)</string>
+    <string name="pause_exhausted">Monthly pause allowance is used up, or Keep Me Out is active.</string>
+    <string name="focus_connection_missing">The Keep Me Out server is not configured for this build. Standard blocking and habits still work.</string>
 </resources>

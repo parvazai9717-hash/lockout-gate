@@ -1,0 +1,14 @@
+# Lockout Gate privacy policy - corrected draft
+Updated 19 October 2026. Publisher: Parvaz AI / Ahmad Ameen. Support: parvazai9717@gmail.com. Confirm public details before publication.
+
+App selections, habits, completion dates, break-use counters, pause quota and copied background pictures are stored in app-private storage. Accessibility identifies foreground package names to show a blocking screen; it does not retrieve screen text, messages or passwords. Usage Access measures selected-app time during ordinary breaks. Optional notifications show break status.
+
+**Keep Me Out uses a server.** Over HTTPS it sends a device identifier, authentication/per-install credentials, requested lock duration, state requests, and early-exit requests. The server stores lock start/end times, a hash of the per-install secret and failed admin-attempt counters. The admin key is sent only when entered for early exit and is not saved on the phone. The hosting provider can process operational connection/IP logs. App lists, habits and background pictures are not uploaded by this Android build.
+
+There are no ads, payments, analytics SDKs or remote AI calls in this Android preview. Legacy server photo-verification endpoints remain for compatibility but are not used by the app; do not describe them as part of the current phone flow.
+
+Two protection pauses are available per calendar month. Permanent app selections cannot be unchecked inside the app after confirmation. Keep Me Out cannot be cancelled by an ordinary pause or break. Android permission controls, Settings and uninstall remain available; disabling permissions, clearing storage or uninstalling can defeat on-device enforcement and deletes local data. Do not claim reinstall resistance or impossible-to-bypass control.
+
+Deleting a habit removes its local completion data. There is no app-provided cloud backup. Server lock/device records are separate from local app data. The personal-server preview currently requires contacting the server operator for server-data deletion; implement per-user deletion and recovery before public launch. Retention and server-log configuration must be finalized and disclosed before store submission.
+
+This is a self-control tool for the device owner, not surveillance, parental monitoring or medical treatment. No payment starts automatically. Publish a permanent public HTTPS policy matching the final signed build before Google Play submission.

@@ -1,0 +1,11 @@
+# Easy Panel: deployment checklist
+
+Keep Me Out needs the updated Python server. The previous live service has no /v1/focus routes. Standard app blocking, wallpaper and habits do not require this server.
+
+Use repository parvazai9717-hash/lockout-gate, canonical branch main after the reviewed integration, build path /, root Dockerfile, internal port 8080 and the existing HTTPS app domain. Preserve the **lockout-data** volume at **/var/lib/lockout**. Startup creates a consistent SQLite backup at **/var/lib/lockout/gate.db.before-focus-v1.bak** before adding focus tables, and never overwrites it. No scheduled external backup service was created. Do not recreate/delete the service or volume.
+
+Preserve existing environment variables. LOCKOUT_DEVICE_KEY and LOCKOUT_ADMIN_KEY must be nondefault private values; LOCKOUT_DB stays /var/lib/lockout/gate.db. The admin key is never an Android build property. The device key must match the ignored local Android configuration for this personal preview. A previously committed fallback device key needs rotation before public distribution, with a coordinated phone update.
+
+New focus tables are created without dropping existing tables. Legacy app endpoints remain. Verify /v1/focus/state now exists and rejects an unauthenticated request; verify authenticated state and a short synthetic-device lock, without starting a real user lock. Do not enable automatic deployment or change other VPS services as part of this update.
+
+Public release remains gated on per-user provisioning/recovery and final privacy/deletion design. Do not scale the shared master-admin preview to arbitrary Play users or put the server admin key in an APK.

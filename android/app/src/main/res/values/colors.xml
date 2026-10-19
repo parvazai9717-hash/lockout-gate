@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand / Primary Accent -->
+    <color name="primary">#6366F1</color>
+    <color name="primary_dark">#4F46E5</color>
+    <color name="primary_container">#EEF2FF</color>
+    <color name="on_primary_container">#312E81</color>
+
+    <!-- Status Colors -->
+    <!-- Locked / Alert -->
+    <color name="status_locked">#EF4444</color>
+    <color name="status_locked_container">#FEF2F2</color>
+    <color name="on_status_locked_container">#991B1B</color>
+
+    <!-- Unlocked / Active Break -->
+    <color name="status_unlocked">#10B981</color>
+    <color name="status_unlocked_container">#ECFDF5</color>
+    <color name="on_status_unlocked_container">#065F46</color>
+
+    <!-- Hard Lock / Warning -->
+    <color name="status_warning">#F59E0B</color>
+    <color name="status_warning_container">#FFFBEB</color>
+    <color name="on_status_warning_container">#92400E</color>
+
+    <!-- Surfaces & Neutrals -->
+    <color name="background_light">#F8FAFC</color>
+    <color name="surface_card_light">#FFFFFF</color>
+    <color name="text_primary_light">#0F172A</color>
+    <color name="text_secondary_light">#64748B</color>
+    <color name="card_stroke_light">#E2E8F0</color>
+
+    <!-- Dark Mode / Block Overlay Neutrals -->
+    <color name="background_dark">#0B0F19</color>
+    <color name="surface_card_dark">#151C2C</color>
+    <color name="text_primary_dark">#F8FAFC</color>
+    <color name="text_secondary_dark">#94A3B8</color>
+    <color name="card_stroke_dark">#2A354D</color>
+</resources>

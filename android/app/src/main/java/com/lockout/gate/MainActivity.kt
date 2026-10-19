@@ -1,98 +1,241 @@
 package com.lockout.gate
 
+import android.Manifest
+import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.text.InputType
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import com.lockout.gate.network.ApiClient
-import com.lockout.gate.network.DeviceRequest
-import com.lockout.gate.network.HardLockStartRequest
+import com.google.android.material.button.MaterialButtonToggleGroup
 import com.lockout.gate.state.SessionStore
 import kotlinx.coroutines.launch
 
 /**
- * Status + controls screen. All real enforcement happens in
- * AppBlockAccessibilityService; this is just where you check status, start
- * a normal-mode break, start a hard lock, or use the monthly emergency
- * disable/enable switch.
+ * Two tabs: "Lockout" (status + controls; all real enforcement happens in
+ * AppBlockAccessibilityService) and "Habits" (daily checklist + monthly
+ * progress grid).
  */
-class MainActivity : AppCompatActivity() {
+class MainActivity : BaseActivity() {
+    private val stateListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+        if (::habitController.isInitialized) runOnUiThread { renderStatus() }
+    }
 
     private lateinit var store: SessionStore
     private lateinit var statusText: TextView
+    private lateinit var habitController: HabitTrackerController
+    private lateinit var lockoutScroll: View
+    private lateinit var habitsScroll: View
+    private lateinit var focusView: View
+    private lateinit var focusController: FocusTabController
+
+    private val pickBackgroundMedia = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) lifecycleScope.launch {
+            val saved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                BackgroundHelper.saveCustomBackground(this@MainActivity, uri)
+            }
+            Toast.makeText(this@MainActivity, if (saved) R.string.background_updated else R.string.photo_read_failed, Toast.LENGTH_SHORT).show()
+            applyBackground()
+        }
+    }
+
+    private val requestNotificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
 
         store = SessionStore(this)
-        statusText = findViewById(R.id.statusText)
+        if (store.isFirstRun) {
+            startActivity(Intent(this, OnboardingActivity::class.java))
+            finish()
+            return
+        }
 
+        setContentView(R.layout.activity_main)
+        statusText = findViewById(R.id.statusText)
+        lockoutScroll = findViewById(R.id.lockoutScroll)
+        habitsScroll = findViewById(R.id.habitsScroll)
+        habitController = HabitTrackerController(this, habitsScroll)
+        focusView = findViewById(R.id.focusTab)
+        focusController = FocusTabController(this,focusView,store)
+
+        val tabGroup = findViewById<MaterialButtonToggleGroup>(R.id.mainTabGroup)
+        tabGroup.check(when(store.lastSelectedTab) { TAB_HABITS -> R.id.tabHabitsButton; TAB_FOCUS -> R.id.tabFocusButton; else -> R.id.tabLockoutButton })
+        showTab(store.lastSelectedTab)
+        tabGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (isChecked) showTab(when(checkedId) { R.id.tabHabitsButton -> TAB_HABITS; R.id.tabFocusButton -> TAB_FOCUS; else -> TAB_LOCKOUT })
+        }
+
+        findViewById<Button>(R.id.manageAppsButton).setOnClickListener {
+            startActivity(Intent(this, AppPickerActivity::class.java))
+        }
         findViewById<Button>(R.id.takeBreakButton).setOnClickListener {
             startActivity(Intent(this, BreakActivity::class.java))
         }
         findViewById<Button>(R.id.hardLockButton).setOnClickListener { promptHardLock() }
         findViewById<Button>(R.id.emergencyButton).setOnClickListener { toggleEmergency() }
-        findViewById<Button>(R.id.enableAccessibilityButton).setOnClickListener {
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-        }
+        findViewById<Button>(R.id.enableAccessibilityButton).setOnClickListener { showAccessibilityDisclosure() }
         findViewById<Button>(R.id.enableUsageAccessButton).setOnClickListener {
             startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
         }
+        findViewById<Button>(R.id.customizeBackgroundButton).setOnClickListener {
+            pickBackgroundMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }
+        findViewById<Button>(R.id.resetBackgroundButton).setOnClickListener {
+            BackgroundHelper.clearCustomBackground(this)
+            Toast.makeText(this, R.string.background_reset, Toast.LENGTH_SHORT).show()
+            applyBackground()
+        }
 
+        val privacy = Button(this).apply {
+            setText(R.string.privacy_title)
+            setOnClickListener { startActivity(Intent(this@MainActivity, PrivacyActivity::class.java)) }
+        }
+        (findViewById<View>(R.id.manageAppsButton).parent as? android.view.ViewGroup)?.addView(privacy)
+        maybeRequestNotificationPermission()
         renderStatus()
     }
 
     override fun onResume() {
         super.onResume()
-        refreshFromServer()
+        if (!::habitController.isInitialized) return
+        getSharedPreferences("lockout_session", MODE_PRIVATE).registerOnSharedPreferenceChangeListener(stateListener)
+        applyBackground()
+        renderStatus()
+        habitController.render()
+        if (store.focusActive()) startActivity(Intent(this,FocusLockActivity::class.java))
+    }
+
+    override fun onPause() {
+        getSharedPreferences("lockout_session", MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(stateListener)
+        super.onPause()
+    }
+
+    private fun showTab(tab: Int) {
+        store.lastSelectedTab = tab
+        lockoutScroll.visibility = if (tab == TAB_LOCKOUT) View.VISIBLE else View.GONE
+        habitsScroll.visibility = if (tab == TAB_HABITS) View.VISIBLE else View.GONE
+        focusView.visibility = if (tab == TAB_FOCUS) View.VISIBLE else View.GONE
+        if (tab == TAB_HABITS) habitController.render()
+        if (tab == TAB_FOCUS) focusController.refresh()
+    }
+
+    private fun maybeRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    /** Google Play requires a prominent in-app disclosure before sending users to enable an accessibility service. */
+    private fun showAccessibilityDisclosure() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.accessibility_disclosure_title)
+            .setMessage(R.string.accessibility_disclosure_message)
+            .setPositiveButton(R.string.accessibility_disclosure_agree) { _, _ ->
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+            .setNegativeButton(R.string.accessibility_disclosure_decline, null)
+            .show()
+    }
+
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        val expected = ComponentName(this, AppBlockAccessibilityService::class.java)
+        val enabled = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
+            ?: return false
+        return enabled.split(':').any { ComponentName.unflattenFromString(it) == expected }
     }
 
     private fun renderStatus() {
-        val lines = mutableListOf<String>()
-        lines += if (!store.enabled) {
-            getString(R.string.status_emergency_disabled)
-        } else if (store.hardLockActive) {
-            getString(R.string.status_hard_lock, store.hardLockDaysRemaining)
-        } else {
-            getString(R.string.status_normal)
-        }
-        lines += if (store.locked) getString(R.string.status_locked) else getString(R.string.status_unlocked_now)
-        lines += getString(R.string.status_breaks_remaining, store.breaksRemainingToday)
-        lines += if (UsageTracker.hasUsageAccess(this)) {
-            getString(R.string.status_usage_access_ok)
-        } else {
-            getString(R.string.status_usage_access_missing)
+        val statusBadge = findViewById<TextView>(R.id.statusBadge)
+        val breaksRemainingText = findViewById<TextView>(R.id.breaksRemainingText)
+
+        val mainStatus: String
+        val badgeText: String
+        val badgeBgColor: Int
+        when {
+            !isAccessibilityServiceEnabled() -> {
+                mainStatus = getString(R.string.service_inactive)
+                badgeText = getString(R.string.badge_disabled)
+                badgeBgColor = getColor(R.color.status_warning)
+            }
+            !store.enabled -> {
+                mainStatus = getString(R.string.status_emergency_disabled)
+                badgeText = getString(R.string.badge_disabled)
+                badgeBgColor = getColor(R.color.status_locked)
+            }
+            store.hardLockActive -> {
+                mainStatus = getString(R.string.status_hard_lock, store.hardLockDaysRemaining)
+                badgeText = getString(R.string.badge_hard_lock)
+                badgeBgColor = getColor(R.color.status_warning)
+            }
+            !store.locked -> {
+                mainStatus = getString(R.string.status_unlocked_now)
+                badgeText = getString(R.string.badge_unlocked)
+                badgeBgColor = getColor(R.color.status_unlocked)
+            }
+            else -> {
+                mainStatus = getString(R.string.status_locked)
+                badgeText = getString(R.string.badge_locked)
+                badgeBgColor = getColor(R.color.status_locked)
+            }
         }
 
-        statusText.text = lines.joinToString("\n")
+        statusText.text = mainStatus
+        statusBadge.text = badgeText
+        statusBadge.setBackgroundColor(badgeBgColor)
+        breaksRemainingText.text = getString(R.string.status_breaks_remaining, store.breaksRemainingToday)
+
+        findViewById<TextView>(R.id.timeSavedValueText).text = store.blockedAttemptsToday.toString()
+        findViewById<TextView>(R.id.breaksUsedValueText).text = store.breaksUsedToday.toString()
+        findViewById<TextView>(R.id.streakValueText).text = getString(R.string.stat_days_format, store.streakDays)
 
         findViewById<Button>(R.id.emergencyButton).setText(
             if (store.enabled) R.string.emergency_disable else R.string.emergency_enable,
         )
-        findViewById<Button>(R.id.hardLockButton).isEnabled = !store.hardLockActive
+        findViewById<Button>(R.id.emergencyButton).apply {
+            isEnabled = !store.focusActive() && (!store.enabled || store.pausesRemainingThisMonth > 0)
+            if (store.enabled) text = getString(R.string.pause_allowance,store.pausesRemainingThisMonth)
+        }
+        findViewById<Button>(R.id.hardLockButton).isEnabled = store.enabled && !store.hardLockActive
+
+        findViewById<Button>(R.id.enableAccessibilityButton).setText(
+            if (isAccessibilityServiceEnabled()) R.string.permission_granted else R.string.enable_accessibility,
+        )
+        findViewById<Button>(R.id.enableUsageAccessButton).setText(
+            if (UsageTracker.hasUsageAccess(this)) R.string.permission_granted else R.string.enable_usage_access,
+        )
     }
 
-    private fun refreshFromServer() {
-        lifecycleScope.launch {
-            try {
-                val resp = ApiClient.api.lockState(Config.DEVICE_KEY, Config.DEVICE_ID)
-                val body = resp.body()
-                if (resp.isSuccessful && body != null) {
-                    store.update(body)
-                    renderStatus()
-                }
-            } catch (e: Exception) {
-                // Offline or server unreachable — keep showing the last cached state.
-            }
-        }
+    private fun applyBackground() {
+        val bgImageView = findViewById<ImageView>(R.id.customBackgroundImageView)
+        val scrimView = findViewById<View>(R.id.backgroundScrimView)
+        BackgroundHelper.applyCustomBackground(this, bgImageView, scrimView)
+        findViewById<Button>(R.id.resetBackgroundButton).visibility =
+            if (store.customBackgroundPath != null) View.VISIBLE else View.GONE
+    }
+
+    private fun formatSavedTime(ms: Long): String {
+        val totalMins = ms / 60_000L
+        val hours = totalMins / 60
+        val mins = totalMins % 60
+        return if (hours > 0) "${hours}h ${mins}m" else "${mins}m"
     }
 
     private fun promptHardLock() {
@@ -106,7 +249,7 @@ class MainActivity : AppCompatActivity() {
             .setView(input)
             .setPositiveButton(R.string.hard_lock_confirm) { _, _ ->
                 val days = input.text.toString().toIntOrNull()
-                if (days == null || days < 1) {
+                if (days == null || days !in 1..MAX_HARD_LOCK_DAYS) {
                     Toast.makeText(this, R.string.hard_lock_invalid_days, Toast.LENGTH_SHORT).show()
                 } else {
                     startHardLock(days)
@@ -117,62 +260,30 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startHardLock(days: Int) {
-        lifecycleScope.launch {
-            try {
-                val resp = ApiClient.api.startHardLock(
-                    Config.DEVICE_KEY,
-                    HardLockStartRequest(Config.DEVICE_ID, days),
-                )
-                val body = resp.body()
-                if (resp.isSuccessful && body != null) {
-                    store.update(body)
-                    renderStatus()
-                    Toast.makeText(this@MainActivity, getString(R.string.hard_lock_started, days), Toast.LENGTH_LONG).show()
-                } else {
-                    Toast.makeText(this@MainActivity, "Could not start hard lock (server error)", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Toast.makeText(this@MainActivity, "Could not reach server: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
-        }
+        if (store.startHardLock(days)) toast(getString(R.string.hard_lock_started, days))
+        renderStatus()
     }
 
     private fun toggleEmergency() {
-        val goingToDisable = store.enabled
-        val action: suspend () -> retrofit2.Response<com.lockout.gate.network.LockState> = {
-            if (goingToDisable) {
-                ApiClient.api.emergencyDisable(Config.DEVICE_KEY, DeviceRequest(Config.DEVICE_ID))
-            } else {
-                ApiClient.api.emergencyEnable(Config.DEVICE_KEY, DeviceRequest(Config.DEVICE_ID))
+        if (!store.enabled) { store.setProtection(true); renderStatus(); return }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.emergency_confirm_title)
+            .setMessage(getString(R.string.emergency_confirm_message,store.pausesRemainingThisMonth))
+            .setPositiveButton(R.string.emergency_confirm_yes) { _, _ ->
+                if (!store.setProtection(false)) toast(getString(R.string.pause_exhausted))
+                renderStatus()
             }
-        }
-
-        if (goingToDisable) {
-            AlertDialog.Builder(this)
-                .setTitle(R.string.emergency_confirm_title)
-                .setMessage(R.string.emergency_confirm_message)
-                .setPositiveButton(R.string.emergency_confirm_yes) { _, _ -> runEmergencyAction(action) }
-                .setNegativeButton(android.R.string.cancel, null)
-                .show()
-        } else {
-            runEmergencyAction(action)
-        }
+            .setNegativeButton(android.R.string.cancel, null).show()
     }
 
-    private fun runEmergencyAction(action: suspend () -> retrofit2.Response<com.lockout.gate.network.LockState>) {
-        lifecycleScope.launch {
-            try {
-                val resp = action()
-                val body = resp.body()
-                if (resp.isSuccessful && body != null) {
-                    store.update(body)
-                    renderStatus()
-                } else {
-                    Toast.makeText(this@MainActivity, "Server error (${resp.code()})", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Toast.makeText(this@MainActivity, "Could not reach server: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
-        }
+    private fun toast(text: String) {
+        Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
+    }
+
+    companion object {
+        private const val TAB_LOCKOUT = 0
+        private const val TAB_HABITS = 1
+        private const val TAB_FOCUS = 2
+        private const val MAX_HARD_LOCK_DAYS = 90
     }
 }

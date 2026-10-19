@@ -1,31 +1,47 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
 
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { load(it) }
+    }
+}
+
+val serverBaseUrl = localProperties.getProperty("LOCKOUT_SERVER_BASE_URL", "")
+val deviceKey = localProperties.getProperty("LOCKOUT_DEVICE_KEY", "")
+
 android {
     namespace = "com.lockout.gate"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.lockout.gate"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        targetSdk = 36
+        versionCode = 3
+        versionName = "0.3.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Same secret as the server's LOCKOUT_DEVICE_KEY env var, and the
-        // server's base URL. Edit these for your own deployment before
-        // building — see Config.kt for the single source of truth used at
-        // runtime (these just seed its defaults).
-        // Must end with a trailing slash — Retrofit requires it.
-        buildConfigField("String", "SERVER_BASE_URL", "\"https://lockout-gate-lockout-gate.qt5ga9.easypanel.host/\"")
-        buildConfigField("String", "DEVICE_KEY", "\"97931aeac1fe752665cf6ffb950e31e48fde30234bd44e64\"")
+        buildConfigField("String", "SERVER_BASE_URL", "\"$serverBaseUrl\"")
+        buildConfigField("String", "DEVICE_KEY", "\"$deviceKey\"")
+        buildConfigField("String", "FOCUS_DEVICE_ID", "\"${localProperties.getProperty("LOCKOUT_FOCUS_DEVICE_ID", "")}\"")
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".preview"
+            versionNameSuffix = "-preview"
+            resValue("string", "app_name", "Lockout Gate Preview")
+        }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 
@@ -51,8 +67,10 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
 
+    implementation("io.coil-kt:coil:2.6.0")
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
 }
