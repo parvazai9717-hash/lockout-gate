@@ -1,7 +1,19 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
+
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { load(it) }
+    }
+}
+
+val serverBaseUrl = localProperties.getProperty("LOCKOUT_SERVER_BASE_URL") ?: "https://lockout-gate-lockout-gate.qt5ga9.easypanel.host/"
+val deviceKey = localProperties.getProperty("LOCKOUT_DEVICE_KEY") ?: "97931aeac1fe752665cf6ffb950e31e48fde30234bd44e64"
 
 android {
     namespace = "com.lockout.gate"
@@ -15,6 +27,8 @@ android {
         versionName = "0.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        buildConfigField("String", "SERVER_BASE_URL", "\"$serverBaseUrl\"")
+        buildConfigField("String", "DEVICE_KEY", "\"$deviceKey\"")
     }
 
     buildTypes {
