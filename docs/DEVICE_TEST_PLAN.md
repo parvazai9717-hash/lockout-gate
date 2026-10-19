@@ -4,6 +4,8 @@ Record device, Android version, candidate version, actual result and any bug. Un
 1. Fresh install preview alongside the personal app. Complete and skip onboarding; neither path crashes or claims missing permissions are enabled.
 2. Decline Accessibility and Usage Access. Main screen must explain what is inactive. The habit checklist remains useful.
 3. Read disclosure, then manually enable Accessibility and Usage Access. No automation should silently grant these permissions.
+
+Personal debug preview only: after setup with protection on, open Settings > Accessibility > Installed Apps. The list must stay open. Open Wispr Flow: its page stays open. Open Lockout Gate Preview: return Home. Verify other services, notifications, Usage Access and uninstall stay accessible. Pause protection in the app: its Accessibility page can then be opened. Initial permission grants must never be bounced. Repeat on the owner's Samsung; pure matcher tests do not prove OEM UI behavior. The public release has no such redirect and cannot retrieve window contents.
 4. Choose a nonessential app. Settings, home, the default dialer and Lockout Gate must remain available. Reopen selected app: blocker appears without repeated attempt inflation.
 5. Start a 10-minute break. Stay continuously in one selected app beyond several 5-second timer boundaries; time must continue counting. Switch between selected apps: count once, not twice.
 6. Turn the screen off for a few minutes. Screen-off time must not consume the usage budget. Use an unselected app: budget pauses.

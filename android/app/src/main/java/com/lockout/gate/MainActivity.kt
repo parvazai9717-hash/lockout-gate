@@ -25,9 +25,8 @@ import com.lockout.gate.state.SessionStore
 import kotlinx.coroutines.launch
 
 /**
- * Two tabs: "Lockout" (status + controls; all real enforcement happens in
- * AppBlockAccessibilityService) and "Habits" (daily checklist + monthly
- * progress grid).
+ * Three tabs: Lockout controls, Habits, and Keep Me Out. Enforcement runs
+ * in AppBlockAccessibilityService.
  */
 class MainActivity : BaseActivity() {
     private val stateListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->

@@ -7,7 +7,8 @@ class PrivacyActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val text = TextView(this).apply {
-            text = getString(R.string.privacy_body)
+            text = listOf(getString(R.string.personal_settings_guard_notice), getString(R.string.privacy_body))
+                .filter { it.isNotBlank() }.joinToString("\n\n")
             textSize = 16f
             setPadding(32, 32, 32, 32)
         }

@@ -27,7 +27,7 @@ import kotlinx.coroutines.Job
 import android.os.SystemClock
 import android.os.PowerManager
 
-/** Local app blocking. The user may always disable the service or uninstall the app. */
+/** Local app blocking, plus the owner's explicitly requested personal preview guard. */
 class AppBlockAccessibilityService : AccessibilityService() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -41,6 +41,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
     private var lastFocusLaunchAt = 0L
     private var lastFocusSyncAt = -60_000L
     private var focusSyncJob: Job? = null
+    private var lastSettingsRedirectAt = -1_000L
 
     private val screenStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -95,6 +96,17 @@ class AppBlockAccessibilityService : AccessibilityService() {
             if (pkg == packageName) {
                 lastForegroundPackage = pkg
                 return // Do not repeatedly count the blocker itself as another attempt.
+            }
+
+            if (BuildConfig.DEBUG && store.enabled && !store.isFirstRun &&
+                PersonalAccessibilityGuard.shouldReturnHome(event, getString(R.string.app_name),
+                    getString(R.string.accessibility_service_description)) { rootInActiveWindow }) {
+                val now = SystemClock.elapsedRealtime()
+                if (now - lastSettingsRedirectAt >= 1_000L) {
+                    lastSettingsRedirectAt = now
+                    performGlobalAction(GLOBAL_ACTION_HOME)
+                }
+                return
             }
 
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
