@@ -133,14 +133,14 @@
     <string name="unit_hours">Hours</string>
     <string name="unit_days">Days</string>
     <string name="focus_start">Lock me out</string>
-    <string name="focus_footnote">Only the server can end a lock early, and only with your admin key. Breaks and the emergency switch don\'t work during a focus lock.</string>
+    <string name="focus_footnote">Internet (Wi-Fi or mobile data) is needed to start a lock or end it early with your admin key. Once started, the countdown keeps working offline. Ordinary breaks and protection pauses cannot end a focus lock. Android Settings and emergency calls remain available.</string>
     <string name="focus_pick_duration">Pick a duration first.</string>
     <string name="focus_too_long">That\'s longer than the 60-day maximum.</string>
     <string name="focus_confirm_title">Lock your phone?</string>
     <string name="focus_confirm_message">Until %1$s you\'ll only be able to use Phone and WhatsApp. Ending early needs your admin key.</string>
     <string name="focus_confirm_yes">Lock me out</string>
     <string name="focus_start_failed">Could not start the lock (server error).</string>
-    <string name="focus_start_offline">Can\'t reach the server. A lock has to start on the server\'s clock, so connect and try again.</string>
+    <string name="focus_start_offline">Can\'t reach the server. Connect using Wi-Fi or mobile data and try again. After the lock starts, it keeps working offline.</string>
     <string name="focus_lock_title">Keep Me Out</string>
     <string name="focus_lock_until">Until %1$s</string>
     <string name="focus_phone">Phone</string>

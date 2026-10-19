@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.LockoutGate" parent="Theme.Material3.DayNight.NoActionBar">
+    <!-- These screens use a light palette. Keep inherited text/chips/dialogs light
+         too, even when the device uses dark mode. -->
+    <style name="Theme.LockoutGate" parent="Theme.Material3.Light.NoActionBar">
         <!-- Primary colors -->
         <item name="colorPrimary">@color/primary</item>
         <item name="colorOnPrimary">#FFFFFF</item>
