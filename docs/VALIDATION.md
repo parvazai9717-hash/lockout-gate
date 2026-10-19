@@ -1,33 +1,20 @@
 # Version 0.3 preview validation
 
-This update supersedes the historical 0.2 results below. Locally, the 0.3 debug APK, minified unsigned release AAB and instrumentation APK build successfully. Sixteen JVM tests (11 usage, 4 focus-clock, 1 API JSON) and 15 server tests pass. Android lint reports zero errors and 157 warnings. Version code is 3; version name is 0.3.0. HTTPS networking is required for Keep Me Out; no fallback server credential remains in current source.
+Validated 19 October 2026. This replaces the local-only 0.2 preview and combines the usage/habit fixes, Studio configuration and Claude's Keep Me Out feature.
 
-The current device suite has 20 tests, adding monthly pause limits, permanent selections and focus state. Its results must be recorded after Studio runs it; historical results do not certify this update. Owner preview preferences are privately backed up before tests and restored afterward. Install through Studio Run.
+## Passed
+- 16 JVM tests: eleven usage accounting, four focus clock and one API JSON contract test.
+- 21 instrumentation tests through Android Studio on Samsung SM-A065F, Android 16/API 36: five habits and sixteen state tests, including permanent selections, monthly pauses, cached focus and stale network responses around admin exit.
+- 15 server tests: duration/extension, admin-only exit, installation isolation, persistent failed-admin throttling, legacy break restrictions and a consistent SQLite snapshot that is never overwritten.
+- Debug APK, instrumentation APK and minified unsigned release AAB build successfully. AGP 8.9.1, Gradle 8.11.1, JDK 21, compile/target API 36, minimum API 26. Version code 3; version name 0.3.0. Preview package is com.lockout.gate.preview; release package is com.lockout.gate.
+- Android lint: zero errors, 157 warnings. Layout, hardcoded English, dependency and resource warnings remain. No measured battery or frame-rate improvement is claimed.
+- No configured private device key is present in tracked current source. HTTPS is required for Keep Me Out. Accessibility cannot retrieve screen content. Settings, calls, permission controls and uninstall stay accessible.
 
-Keep Me Out server changes require deployment with persistent storage; startup creates a consistent pre-focus SQLite backup without overwriting an earlier snapshot. The shared device/master-admin configuration is a personal preview. Public release requires user-owned provisioning/recovery, rotation of the previously committed device key, signed-update testing and the remaining device/Play checks.
+Owner preview preferences were backed up privately before instrumentation. Android Studio's test runner uninstalls its target afterward, so normal app Run and preference restoration are separate installation checks. Future tests must back up all app-private files or use a disposable target; never assume tests preserve the owner's installation.
 
-## Historical 0.2 results (superseded)
+## Remaining release checks
+Complete DEVICE_TEST_PLAN.md: actual app blocking/expiry, calls/WhatsApp, offline/reboot behavior, rotation/font scaling, another OEM/older Android and realistic battery use. The unit/state tests do not certify these end-to-end cases.
 
-Prepared 19 October 2026 from Android Studio branch `claude/ai-work-accountability-agent-ork10y`, commit `298e8ff8bbcd88d629cfbde24b0f543be6920fb7`, in an isolated checkout. These findings describe this candidate, not the installed personal app or the old `main` prototype.
+This shared device/master-admin configuration is a personal preview. Public release requires user-owned provisioning/recovery, coordinated rotation of the historically committed device key, signed-update testing, accurate privacy/support pages and current Play requirements. An unsigned bundle is not upload-ready. Build success does not demonstrate Play approval or income.
 
-## Completed
-- Debug preview APK, minified release AAB and Android instrumentation test APK build successfully with AGP 8.9.1, Gradle 8.11.1, JDK 21 and Android API 36.
-- Eleven usage-accounting unit tests pass: poll boundaries, seeded state, pause/stop events, screen-off time, overlapping apps, empty/backward intervals and future events.
-- All 15 instrumentation tests passed on the connected Samsung SM-A065F, Android 16/API 36: ten break-state tests and five habit-history tests.
-- Preview installs alongside the original app as `com.lockout.gate.preview`. First-run onboarding launches without a crash; screenshot inspected at 720 × 1600. No Accessibility or Usage Access was granted to the preview by automation.
-- Android lint reports zero errors and 146 warnings, largely existing hardcoded English, dependency suggestions, layout/resource cleanup and API-specific attributes. Atomic preference commits are intentional for break transitions. These warnings remain follow-up work; the app is not claimed warning-free.
-- Merged release manifest inspected: package `com.lockout.gate`, version code 2, version 0.2.0, minimum API 26, target API 36. INTERNET and QUERY_ALL_PACKAGES are absent. Usage Access, optional notifications and a library's signature-protected internal receiver permission remain. Accessibility service cannot retrieve window content.
-- The release AAB is explicitly unsigned, confirmed using JDK signature verification. It is a build candidate, not an upload-ready signed release.
-- Git whitespace check passes. No local SDK path, keystore, API credential or generated build cache belongs in the source archive.
-
-## Changes with regression coverage
-Usage is measured as the union of foreground selected-app intervals, with screen-off time excluded and state carried between polls. Break budget is fixed at start; double taps/concurrent starts grant one break. Expiry persists across store instances. Daily quota resets do not reset running usage. Hard-lock dates persist while the user pauses protection. Backward clock changes/reboots end an active break. A generation identifier rejects measurements from a previous break. Habit scoring, streaks, deletion and cache invalidation have device tests.
-
-The service performs no network polling, avoids screen-content traversal, uses one background measurement at a time and queries only new events after initialization. Habit lists are parsed only when changed; calendar membership checks no longer copy completion history for every cell. These reduce work by inspection; no measured battery or frame-rate improvement is claimed.
-
-## Still required before production
-Run `DEVICE_TEST_PLAN.md` with voluntary permission grants on real devices. In particular, actual blocking and expiry during continuous usage, reboot/service restart, Samsung background management, split screen, default launcher/dialer protection, large text, rotation and multi-day battery use have not been certified by these tests. Usage history may be unavailable or delayed on some devices; do not promise impossible-to-bypass enforcement.
-
-Confirm publisher/contact details and product scope, reconcile any newer Studio-agent changes, sign with the owner's upload key, publish the privacy/support website, complete Play declarations and the required closed-testing cohort. Google Play approval and income have not been demonstrated.
-
-The original checkout, original installed app, VPS services and production branch were preserved. Root Python server files are legacy reference only; do not deploy them for the local-only candidate.
+GitHub validation is configured but was still queued when local validation completed. Deployment must retain /var/lib/lockout and the pre-focus SQLite snapshot. Deployment and normal Studio Run results are recorded separately in the owner handoff.

@@ -1,6 +1,6 @@
 # Lockout Gate
 
-The canonical project is this repository root, branch **main** after integration. Open **android/** in Android Studio. Do not open the nested lockout-gate folder. Historical branches are retained as archive tags when consolidated; ongoing work belongs on main or a short-lived reviewed change branch.
+The canonical project is this repository root, branch **main**. Open **android/** in Android Studio. Do not open the nested lockout-gate folder. Historical branches are retained as archive tags when consolidated; ongoing work belongs on main or a short-lived reviewed change branch.
 
 ## Product rules
 - Three tabs: Lockout, Habits, Keep Me Out.
