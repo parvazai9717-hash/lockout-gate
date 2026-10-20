@@ -49,6 +49,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
                 Intent.ACTION_SCREEN_OFF -> {
                     isScreenInteractive = false
                     handler.removeCallbacks(refreshRunnable)
+                    refreshAndReport() // Flush the last visible seconds before sleeping.
                 }
                 Intent.ACTION_SCREEN_ON -> {
                     isScreenInteractive = true
@@ -249,11 +250,15 @@ class AppBlockAccessibilityService : AccessibilityService() {
                 }
                 if (store.activeBreak) {
                     val breakId = store.breakId
+                    val elapsedNow = SystemClock.elapsedRealtime()
                     val now = System.currentTimeMillis()
-                    val checkpoint = store.usageCheckpointMs
                     if (UsageTracker.hasUsageAccess(applicationContext)) {
-                        val delta = UsageTracker.foregroundMsBetween(applicationContext, store.getAllBlockedPackages(), checkpoint, now)
-                        store.accountUsage(delta, now, SystemClock.elapsedRealtime(), breakId)
+                        val packages = store.getAllBlockedPackages()
+                        val window = store.measurementWindow(packages)
+                        val sample = UsageTracker.measureBreak(applicationContext, packages, breakId, window.startWall, now)
+                        store.accountMeasuredUsage(sample.totalMs, now, elapsedNow, breakId, window)
+                        TimerLog.record(applicationContext, now, breakId, sample.totalMs,
+                            store.cumulativeBreakUsageMs, store.breakRemainingMs, sample.events, sample.queryMs)
                     } else {
                         // Tracking permission was revoked: do not silently grant an unlimited break.
                         store.endBreakLocally()

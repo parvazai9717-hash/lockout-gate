@@ -1,5 +1,16 @@
 # Version 0.3 preview validation
 
+## 0.3.1 timer and security candidate - 20 October 2026
+
+- Version code 4, version name 0.3.1. The user's tested personal Accessibility/removal guards remain. No phone installation, permission change, uninstall or Studio UI action is performed by the agent.
+- 72 Android tests pass: 17 usage-window cases (including Feed/Reels transitions, old-activity stops and lit lock screens), four delayed-event replay cases, 14 real SessionStore persistence cases under Robolectric on API 28/36, three bounded/disabled/corrupt timer-log cases, and the existing 34 focus/JSON/own-page matcher cases. API 36 simulation uses JDK 21. CI now uses JDK 21 too. A Windows Robolectric URL-space bug is worked around locally with `-ProbolectricMavenRepo=C:/Users/DOCTOR~1/.m2/repository`; other machines can supply their own space-free local cache path. This property only affects tests.
+- Seven shared timer-persistence cases are also compiled into the instrumentation APK. They were not run on the owner's phone, per the explicit instruction. No disposable emulator/system image is installed. The prior 21-test phone report is historical and does not validate these new changes. Live Samsung timer accuracy and normal signed-update behavior remain acceptance checks; follow TIMER_TEST.md.
+- 46 server tests pass, including persistent global admin throttling, parallel calls, lock/break races, legacy retries, late photo responses and body-size/authentication defenses. All databases/credentials/provider responses in those tests are disposable fixtures. No owner's active server session is modified.
+- Production Python requirements are unchanged since the preceding 37-package audit with no known findings. That audit is historical Windows/Python requirements evidence, not a current Linux container scan or an audit of test-only JVM dependencies.
+- Final local build: debug APK, device-test APK and optimized unsigned release AAB succeed. Lint has zero errors and 166 warnings (including existing layout/resource/dependency warnings and KTX/localization suggestions); no battery/frame-rate benchmark is claimed. Text encoding passes across 122 checked files. See the handoff's CURRENT_VALIDATION.md for the synchronized commit. Server deployment and post-deployment live checks remain pending because the authorized browser session is unavailable. Existing VPS data/environment were not changed.
+
+The candidate is ready for the owner's app test after a successful build/sync, not a completed Play submission. Public per-user authentication/recovery, credential rotation, Strict Mode review, signing/account/testing requirements and broader device/battery checks remain in PLAY_RELEASE.md and SECURITY_REVIEW.md.
+
 Validated 19 October 2026. This replaces the local-only 0.2 preview and combines the usage/habit fixes, Studio configuration and Claude's Keep Me Out feature.
 
 ## Current arrow and personal settings update

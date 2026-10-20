@@ -5,7 +5,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY gate.py work.py focus.py gemini_verify.py server_auth.py .
+COPY gate.py work.py focus.py gemini_verify.py server_auth.py server_transport.py .
 
 # SQLite lives here. Mount a PERSISTENT VOLUME at this path.
 # Without one, every redeploy wipes today's counter and hands you a free reset;
@@ -19,4 +19,4 @@ EXPOSE 8080
 
 # 0.0.0.0, not 127.0.0.1: the reverse proxy reaches this over the container
 # network, so binding to loopback would make it unreachable.
-CMD ["uvicorn", "gate:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "gate:app", "--host", "0.0.0.0", "--port", "8080", "--limit-concurrency", "32", "--timeout-keep-alive", "5", "--no-server-header"]

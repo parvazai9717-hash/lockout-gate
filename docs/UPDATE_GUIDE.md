@@ -3,7 +3,7 @@
 You keep one Google Play listing for Lockout Gate. Each improvement is a new version of the same app.
 
 1. We edit and test the code, keeping the same release package name (`com.lockout.gate`).
-2. Increase `versionCode` for every uploaded release. This candidate uses 3; use a higher unused number next time. `versionName` is the friendly number users see.
+2. Increase `versionCode` for every uploaded release. This candidate uses 4 (version 0.3.1); use a higher unused number next time. `versionName` is the friendly number users see.
 3. Build a release Android App Bundle (`.aab`) and sign it with your upload key. Keep that key and its password backed up securely. Play App Signing manages the app-signing key; an upload-key recovery process exists if needed.
 4. Upload the bundle to an internal or closed testing track first. Test the update over the previous installed version, including local habits and app selections.
 5. Add clear release notes, check any changed permissions/data declarations and submit the production update for review. Start with a small staged rollout when available.

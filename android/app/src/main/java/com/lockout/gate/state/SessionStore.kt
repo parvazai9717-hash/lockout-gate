@@ -45,6 +45,20 @@ class SessionStore(context: Context) {
     val cumulativeBreakUsageMs: Long get() = prefs.getLong("cumulative_break_usage_ms", 0)
     val breakBudgetMs: Long get() = prefs.getLong("break_budget_ms", 30 * 60_000L)
     val breakRemainingMs: Long get() = (breakBudgetMs - cumulativeBreakUsageMs).coerceAtLeast(0)
+    data class MeasurementWindow(val startWall: Long, val startElapsed: Long, val baseUsage: Long)
+
+    fun measurementWindow(packages: Set<String>): MeasurementWindow = synchronized(LOCK) {
+        // Upgrade old active breaks and rebase selection changes without losing
+        // already charged usage or charging newly selected apps retroactively.
+        if (!prefs.contains("measurement_start_wall") || prefs.getStringSet("measurement_packages", null) != packages) {
+            prefs.edit().putLong("measurement_start_wall", usageCheckpointMs)
+                .putLong("measurement_start_elapsed", prefs.getLong("elapsed_checkpoint_ms", SystemClock.elapsedRealtime()))
+                .putLong("measurement_base_usage", cumulativeBreakUsageMs)
+                .putStringSet("measurement_packages", HashSet(packages)).commit()
+        }
+        MeasurementWindow(prefs.getLong("measurement_start_wall", usageCheckpointMs),
+            prefs.getLong("measurement_start_elapsed", 0), prefs.getLong("measurement_base_usage", 0))
+    }
     var selectedBreakMinutes: Int
         get() = prefs.getInt("selected_break_minutes", Config.BREAK_MINUTES).coerceIn(1, 45)
         set(v) { prefs.edit().putInt("selected_break_minutes", v.coerceIn(1, 45)).apply() }
@@ -90,11 +104,15 @@ class SessionStore(context: Context) {
     fun startBreakLocally(): Boolean = synchronized(LOCK) {
         checkDailyAnalyticsReset()
         if (!enabled || focusActive() || activeBreak || breaksUsedToday >= dailyBreakCap()) return@synchronized false
+        val wall = System.currentTimeMillis()
+        val elapsed = SystemClock.elapsedRealtime()
         prefs.edit().putInt("breaks_used_today", breaksUsedToday+1)
             .putLong("break_id", breakId + 1)
             .putBoolean("active_break", true).putLong("break_budget_ms", selectedBreakMinutes*60_000L)
-            .putLong("usage_checkpoint_ms", System.currentTimeMillis())
-            .putLong("elapsed_checkpoint_ms", SystemClock.elapsedRealtime())
+            .putLong("usage_checkpoint_ms", wall)
+            .putLong("elapsed_checkpoint_ms", elapsed)
+            .putLong("measurement_start_wall", wall).putLong("measurement_start_elapsed", elapsed)
+            .putLong("measurement_base_usage", 0).putStringSet("measurement_packages", HashSet(getAllBlockedPackages()))
             .putInt("break_boot_count", bootCount())
             .putLong("cumulative_break_usage_ms", 0).putBoolean("warned_5min", false)
             .putBoolean("warned_1min", false).commit()
@@ -115,6 +133,23 @@ class SessionStore(context: Context) {
             .putBoolean("active_break", total < breakBudgetMs).commit()
     }
     fun endBreakLocally() = synchronized(LOCK) { prefs.edit().putBoolean("active_break", false).commit(); Unit }
+    /** Cumulative reconciliation catches delayed events without double charging.
+     * The cap covers this measurement segment, not just the latest five seconds.
+     */
+    fun accountMeasuredUsage(usageTotal: Long, wallNow: Long, elapsedNow: Long,
+                             expectedBreakId: Long, window: MeasurementWindow) = synchronized(LOCK) {
+        if (!activeBreak || expectedBreakId != breakId ||
+            window.startWall != prefs.getLong("measurement_start_wall", -1)) return@synchronized
+        val oldElapsed = prefs.getLong("elapsed_checkpoint_ms", elapsedNow)
+        if (bootCount() != prefs.getInt("break_boot_count", bootCount()) || elapsedNow < oldElapsed || wallNow < usageCheckpointMs) {
+            endBreakLocally(); return@synchronized
+        }
+        val measured = usageTotal.coerceIn(0, (elapsedNow - window.startElapsed).coerceAtLeast(0))
+        val total = maxOf(cumulativeBreakUsageMs, window.baseUsage + measured).coerceAtMost(breakBudgetMs)
+        prefs.edit().putLong("cumulative_break_usage_ms", total)
+            .putLong("usage_checkpoint_ms", wallNow).putLong("elapsed_checkpoint_ms", elapsedNow)
+            .putBoolean("active_break", total < breakBudgetMs).commit()
+    }
     fun startHardLock(days: Int): Boolean = synchronized(LOCK) {
         if (!enabled || focusActive() || hardLockActive || days !in 1..90) return@synchronized false
         prefs.edit().putLong("hard_lock_until_ms", System.currentTimeMillis()+days*86_400_000L)

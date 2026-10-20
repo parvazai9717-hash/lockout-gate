@@ -8,4 +8,8 @@ Preserve existing environment variables. LOCKOUT_DEVICE_KEY and LOCKOUT_ADMIN_KE
 
 New focus tables are created without dropping existing tables. Legacy app endpoints remain. Verify /v1/focus/state now exists and rejects an unauthenticated request; verify authenticated state and a short synthetic-device lock, without starting a real user lock. Do not enable automatic deployment or change other VPS services as part of this update.
 
+The latest security revision also adds `admin_attempt` without deleting the old counter table or any sessions. The admin guessing limit is shared by focus/end, status and override: five wrong keys within ten minutes trigger a ten-minute cooldown. Do not test brute-force blocking on the owner's live service; it temporarily blocks valid recovery too. Local tests cover it with disposable databases.
+
+Before deployment, take a fresh consistent SQLite snapshot in addition to the older pre-focus snapshot, confirm the existing volume/environment and current deploy revision, then deploy main. The root Dockerfile includes both `server_auth.py` and `server_transport.py`. Verify health, rejected unauthenticated requests, authenticated device state, and preserved active sessions without changing them. Keep the prior image/revision and fresh snapshot available for rollback. Do not roll back the database merely to roll back code: that could rewind live timers.
+
 Public release remains gated on per-user provisioning/recovery and final privacy/deletion design. Do not scale the shared master-admin preview to arbitrary Play users or put the server admin key in an APK.

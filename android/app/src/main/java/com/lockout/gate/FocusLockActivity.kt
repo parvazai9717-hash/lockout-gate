@@ -2,9 +2,13 @@ package com.lockout.gate
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.text.InputType
+import android.view.View
+import android.view.WindowManager
+import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -116,15 +120,29 @@ class FocusLockActivity : BaseActivity() {
     private fun promptEndEarly() {
         val input = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
+            imeOptions = imeOptions or EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
+            isSaveEnabled = false
+            filterTouchesWhenObscured = true
             hint = getString(R.string.focus_admin_key_hint)
         }
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.focus_end_title)
             .setMessage(R.string.focus_end_message)
             .setView(input)
             .setPositiveButton(R.string.focus_end_confirm) { _, _ -> endEarly(input.text.toString().trim()) }
             .setNegativeButton(android.R.string.cancel, null)
-            .show()
+            .create()
+        // Only the recovery dialog is private; ordinary app screenshots still work.
+        dialog.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            dialog.window?.setHideOverlayWindows(true)
+        }
+        dialog.setOnDismissListener { input.text.clear() }
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).filterTouchesWhenObscured = true
+        }
+        dialog.show()
     }
 
     private fun endEarly(adminKey: String) {

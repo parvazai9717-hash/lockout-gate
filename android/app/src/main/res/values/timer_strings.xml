@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="break_timer_remaining">Selected-app time left: %1$d:%2$02d</string>
+    <string name="timer_log_record">Record timer log on this phone</string>
+    <string name="timer_log_title">Timer log</string>
+    <string name="timer_log_explanation">Only time spent in selected apps uses your break. Other apps and screen-off time do not count. The notification refreshes about every 5 seconds.\n\nThis log keeps the last 240 checks on your phone. It contains times and counters, with no app names, screen contents or keys. You can turn recording off or clear the log. Export saves a file only where you choose; nothing is uploaded automatically.</string>
+    <string name="timer_log_export">Save log</string>
+    <string name="timer_log_clear">Clear log</string>
+    <string name="timer_log_saved">Timer log saved.</string>
+    <string name="timer_log_save_failed">Could not save the timer log.</string>
+</resources>

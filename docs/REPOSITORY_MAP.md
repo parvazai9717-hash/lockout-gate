@@ -20,11 +20,11 @@ The imported `claude-source/keep-me-out` reference points to the same preserved 
 - `MainActivity`, `OnboardingActivity`, `AppPickerActivity`: setup, permissions, three tabs, standard/permanent app selections and wallpaper controls.
 - `AppBlockAccessibilityService`: foreground app blocking, single-flight usage accounting, screen-on/off handling, separately scheduled focus polling and the explicitly requested preview-only settings guard.
 - `SessionStore`: fixed break budgets, daily allowance, strict selections, two monthly pause starts, cached focus deadlines and stale-response protection.
-- `UsageTracker` / `UsageWindow`: cached foreground transitions and screen-interactive usage accounting. Break time advances only for selected apps.
+- `UsageTracker` / `UsageWindow` / `UsageTimeline`: activity-aware foreground accounting, screen/keyguard state and a bounded delayed-event replay window. Break time advances only for selected apps. `TimerLog` records optional bounded on-device counters, with view/clear/export controls in `BreakActivity`. See TIMER_TEST.md for the 0.3.1 correction and acceptance test.
 - `HabitStore` / `HabitTrackerController`: local history, creation-date-aware scores, checklist and month navigation. Navigation uses vector arrows; prior months remain viewable.
 - `FocusTabController`, `FocusLockActivity`, `FocusPolicy`, `FocusClock`, `network/Focus*`: server start/admin exit, cached offline deadline and calls/WhatsApp/system allowances.
 - `BackgroundHelper`: bounded validated local image copy and sized image loading; no wallpaper upload.
-- `focus.py`: persistent focus sessions, per-install secret hashes and failed-admin throttling. `gate.py` makes the pre-focus SQLite snapshot on the persistent volume.
+- `focus.py`: persistent focus sessions and per-install secret hashes. `server_auth.py` shares persistent admin throttling across all recovery routes; `server_transport.py` authenticates before body parsing and bounds streamed requests. `gate.py` makes the pre-focus SQLite snapshot on the persistent volume.
 - `work.py`, `gemini_verify.py`, and the older `gate.py` daily-budget routes are compatibility code. The current Android app does not call photo verification or those legacy break routes. They are not evidence of a photo feature in today's app.
 
 ## Personal Accessibility behavior

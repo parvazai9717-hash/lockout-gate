@@ -17,8 +17,12 @@ import android.os.Process
  * permission dialog for this — only Settings.ACTION_USAGE_ACCESS_SETTINGS).
  */
 object UsageTracker {
-    private var lastEnd = -1L
-    private var lastState = UsageState()
+    private var sessionId = -1L
+    private var sessionStart = -1L
+    private var sessionPackages = emptySet<String>()
+    private var timeline: UsageTimeline? = null
+
+    data class Sample(val totalMs: Long, val events: Int, val queryMs: Long)
 
     fun hasUsageAccess(ctx: Context): Boolean {
         val appOps = ctx.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
@@ -36,28 +40,36 @@ object UsageTracker {
      * [endMs] counts up to [endMs].
      */
     @Synchronized
-    fun foregroundMsBetween(ctx: Context, packages: Set<String>, startMs: Long, endMs: Long): Long {
-        if (startMs >= endMs) return 0L
+    fun measureBreak(ctx: Context, packages: Set<String>, breakId: Long, startMs: Long, endMs: Long): Sample {
+        if (startMs >= endMs) return Sample(0, 0, 0)
         val usm = ctx.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val began = android.os.SystemClock.elapsedRealtime()
+        if (sessionId != breakId || sessionStart != startMs || sessionPackages != packages || timeline == null) {
+            val history = readEvents(usm, (startMs - 86_400_000L).coerceAtLeast(0), startMs, packages)
+            val seed = UsageWindow.measure(history, packages, startMs, startMs + 1).state
+            timeline = UsageTimeline(startMs, seed)
+            sessionId = breakId
+            sessionStart = startMs
+            sessionPackages = packages.toSet()
+        }
+        val current = checkNotNull(timeline)
+        val events = readEvents(usm, current.queryStart, endMs, packages)
+        val total = current.update(events, packages, endMs)
+        return Sample(total, events.size, android.os.SystemClock.elapsedRealtime() - began)
+    }
 
-        // Look back 24 hours (86,400,000 ms) prior to startMs so we capture
-        // MOVE_TO_FOREGROUND events for apps that were opened before startMs.
-        // Replay history once at startup/discontinuity, then read just new events.
-        val reuse = startMs == lastEnd
-        val lookbackStartMs = if (reuse) startMs else (startMs - 86_400_000L).coerceAtLeast(0L)
-        val events = usm.queryEvents(lookbackStartMs, endMs)
+    private fun readEvents(usm: UsageStatsManager, start: Long, end: Long, packages: Set<String>): List<UsageTransition> {
+        val events = usm.queryEvents(start, end)
         val event = UsageEvents.Event()
         val transitions = mutableListOf<UsageTransition>()
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
-            if (event.eventType == 1 || event.eventType == 2 || event.eventType == 15 ||
-                event.eventType == 16 || event.eventType == 23) {
-                transitions.add(UsageTransition(event.timeStamp, event.packageName, event.eventType))
+            val kind = event.eventType
+            if (((kind == 1 || kind == 2 || kind == 23) && event.packageName in packages) ||
+                kind in 15..18 || kind == 26 || kind == 27) {
+                transitions.add(UsageTransition(event.timeStamp, event.packageName, event.eventType, event.className))
             }
         }
-        val result = UsageWindow.measure(transitions, packages, startMs, endMs, if (reuse) lastState else UsageState())
-        lastEnd = endMs
-        lastState = result.state
-        return result.milliseconds
+        return transitions
     }
 }

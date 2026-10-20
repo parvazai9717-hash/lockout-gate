@@ -282,11 +282,12 @@ def break_start(
 ) -> LockState:
     """Start a break — no photo needed. During a hard lock the daily cap drops to 1."""
     _check_auth(x_auth)
-    if focus.focus_active(body.device_id):
-        raise HTTPException(423, "focus lock is active")
     limit_ms = _break_limit_ms(body.minutes)
     with closing(db()) as conn, conn:
+        conn.execute("BEGIN IMMEDIATE")
         row = _load_device(conn, body.device_id, x_device_secret)
+        if focus.active_in_transaction(conn, body.device_id):
+            raise HTTPException(423, "focus lock is active")
         if not row["enabled"]:
             return _build_state(conn, body.device_id, row)
         if row["active_break_started_at"] is not None:
@@ -321,12 +322,15 @@ async def break_claim(
 ) -> BreakClaimResult:
     """Start a hard-lock break — requires a Gemini-verified eating photo."""
     _check_auth(x_auth)
-    if focus.focus_active(device_id):
-        raise HTTPException(423, "focus lock is active")
     limit_ms = _break_limit_ms(minutes)
 
     with closing(db()) as conn, conn:
+        conn.execute("BEGIN IMMEDIATE")
         row = _load_device(conn, device_id, x_device_secret)
+        if focus.active_in_transaction(conn, device_id):
+            raise HTTPException(423, "focus lock is active")
+        if not row["enabled"]:
+            raise HTTPException(409, "blocking is paused")
         if not _hard_lock_active(row):
             raise HTTPException(400, "no hard lock active — use /v1/break/start instead")
 
@@ -357,6 +361,24 @@ async def break_claim(
     result = await run_in_threadpool(gemini_verify.verify_meal, media_bytes, content_type)
 
     with closing(db()) as conn, conn:
+        # The provider runs outside our transaction. Recheck every permission
+        # afterwards so concurrent claims/focus changes cannot grant extra time.
+        conn.execute("BEGIN IMMEDIATE")
+        row = _load_device(conn, device_id, x_device_secret)
+        if focus.active_in_transaction(conn, device_id):
+            raise HTTPException(423, "focus lock is active")
+        if not row["enabled"] or not _hard_lock_active(row):
+            raise HTTPException(409, "lock state changed; request a new break")
+        if row["active_break_started_at"] is not None:
+            return BreakClaimResult(
+                accepted=True, confidence=1.0, reasoning="a break is already active",
+                **_build_state(conn, device_id, row).model_dump(),
+            )
+        if _breaks_used_today(conn, device_id) >= MAX_HARDLOCK_BREAKS_PER_DAY:
+            return BreakClaimResult(
+                accepted=False, confidence=0.0, reasoning="daily break limit reached",
+                **_build_state(conn, device_id, row).model_dump(),
+            )
         if result.accepted:
             now = int(time.time())
             conn.execute(
@@ -423,7 +445,16 @@ def hardlock_start(
 
     until = (date.fromisoformat(today()) + timedelta(days=body.days)).isoformat()
     with closing(db()) as conn, conn:
-        _load_device(conn, body.device_id, x_device_secret)
+        conn.execute("BEGIN IMMEDIATE")
+        row = _load_device(conn, body.device_id, x_device_secret)
+        if _hard_lock_active(row):
+            # Retrying cannot shorten the lock, reset usage, or refund a break.
+            conn.execute(
+                "UPDATE lock_state SET hard_lock_until=? WHERE device_id=?",
+                (max(until, row["hard_lock_until"]), body.device_id),
+            )
+            row = conn.execute("SELECT * FROM lock_state WHERE device_id=?", (body.device_id,)).fetchone()
+            return _build_state(conn, body.device_id, row)
         conn.execute(
             """
             UPDATE lock_state SET
@@ -433,10 +464,6 @@ def hardlock_start(
             WHERE device_id = ?
             """,
             (until, body.device_id),
-        )
-        conn.execute(
-            "INSERT INTO daily_breaks (device_id, day, breaks_used) VALUES (?, ?, 0) ON CONFLICT(device_id, day) DO UPDATE SET breaks_used = 0",
-            (body.device_id, today()),
         )
         row = conn.execute("SELECT * FROM lock_state WHERE device_id = ?", (body.device_id,)).fetchone()
         return _build_state(conn, body.device_id, row)

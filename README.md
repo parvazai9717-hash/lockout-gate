@@ -1,5 +1,7 @@
 # Lockout Gate
 
+Current testing candidate: **0.3.1 (version code 4)**. Fixes selected-app time lost during internal activity transitions, replays delayed usage events and adds optional on-device timer diagnostics. See [the short timer test](docs/TIMER_TEST.md) and [security review](docs/SECURITY_REVIEW.md). The owner presses Android Studio Run; do not uninstall or clear the existing preview to update it.
+
 The canonical project is this repository root, branch **main**. Open **android/** in Android Studio. Do not open the nested lockout-gate folder. Historical branches are retained as archive tags when consolidated; ongoing work belongs on main or a short-lived reviewed change branch.
 
 ## Product rules

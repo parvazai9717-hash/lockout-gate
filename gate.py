@@ -22,11 +22,12 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Header, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import focus
 import work
-from server_auth import require_key
+from server_auth import require_admin, require_key
+from server_transport import RequestGuard
 
 # --------------------------------------------------------------------- config
 
@@ -37,6 +38,7 @@ TZ = ZoneInfo(os.getenv("LOCKOUT_TZ", "Asia/Karachi"))
 LIMIT_MS = int(os.getenv("LOCKOUT_LIMIT_MIN", "30")) * 60_000
 
 app = FastAPI(title="Lockout Gate", docs_url=None, redoc_url=None)
+app.add_middleware(RequestGuard, device_key=lambda: DEVICE_KEY)
 app.include_router(work.router)
 app.include_router(focus.router)
 
@@ -94,8 +96,8 @@ def today() -> str:
 
 
 class CheckIn(BaseModel):
-    device_id: str
-    used_ms: int
+    device_id: str = Field(min_length=1, max_length=100)
+    used_ms: int = Field(ge=-(2**63), le=2**63 - 1)
 
 
 class Verdict(BaseModel):
@@ -121,6 +123,7 @@ def check(body: CheckIn, x_auth: str = Header(default="")) -> Verdict:
     day = today()
 
     with closing(db()) as conn, conn:
+        conn.execute("BEGIN IMMEDIATE")
         row = conn.execute(
             "SELECT day, used_ms, override_until FROM devices WHERE device_id = ?",
             (body.device_id,),
@@ -186,7 +189,7 @@ def override(
     The only escape hatch. Requires ADMIN_KEY, which is deliberately not on the
     phone — so unlocking early means physically going and getting it.
     """
-    require_key(x_admin, ADMIN_KEY, "admin key")
+    require_admin(x_admin, ADMIN_KEY, DB_PATH)
     if not 1 <= minutes <= 240:
         raise HTTPException(400, "minutes must be 1..240")
 
@@ -205,7 +208,7 @@ def override(
 @app.get("/v1/status")
 def status(device_id: str, x_admin: str = Header(default="")) -> dict:
     """Read-only introspection. Admin-gated so the phone can't poll its own state."""
-    require_key(x_admin, ADMIN_KEY, "admin key")
+    require_admin(x_admin, ADMIN_KEY, DB_PATH)
 
     with closing(db()) as conn:
         row = conn.execute(

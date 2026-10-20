@@ -1,6 +1,8 @@
 # Device acceptance plan
 Record device, Android version, candidate version, actual result and any bug. Unit tests do not replace these checks.
 
+For the 0.3.1 timer correction, first follow TIMER_TEST.md: five minutes in Instagram including internal screen changes, then unselected-app/screen-off intervals, and export the local timer log if the result differs by more than a polling interval. Test an update over the existing preview; do not uninstall the owner's app or clear its data.
+
 1. Fresh install preview alongside the personal app. Complete and skip onboarding; neither path crashes or claims missing permissions are enabled.
 2. Decline Accessibility and Usage Access. Main screen must explain what is inactive. The habit checklist remains useful.
 3. Read disclosure, then manually enable Accessibility and Usage Access. No automation should silently grant these permissions.

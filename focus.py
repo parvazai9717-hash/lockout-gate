@@ -10,15 +10,13 @@ import time
 from contextlib import closing
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
-from server_auth import require_configured_key, require_key
+from server_auth import init_admin_schema, require_admin, require_configured_key, require_key
 
 router=APIRouter()
 DB_PATH=os.getenv("LOCKOUT_DB","/var/lib/lockout/gate.db")
 DEVICE_KEY=os.getenv("LOCKOUT_DEVICE_KEY","")
 ADMIN_KEY=os.getenv("LOCKOUT_ADMIN_KEY","")
 MAX_FOCUS_MINUTES=int(os.getenv("LOCKOUT_MAX_FOCUS_MINUTES",str(60*24*60)))
-ADMIN_MAX_FAILS=5
-ADMIN_THROTTLE_SECONDS=600
 
 def db():
     c=sqlite3.connect(DB_PATH,timeout=5); c.row_factory=sqlite3.Row; return c
@@ -31,6 +29,7 @@ def init_schema():
         CREATE TABLE IF NOT EXISTS focus_device(device_id TEXT PRIMARY KEY,secret_hash TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS focus_admin_attempt(device_id TEXT PRIMARY KEY,fails INTEGER NOT NULL DEFAULT 0,blocked_until INTEGER NOT NULL DEFAULT 0);
         """)
+    init_admin_schema(DB_PATH)
 
 def _same(a,b):
     return hmac.compare_digest(a.encode(),b.encode())
@@ -64,10 +63,13 @@ def _state(row,now):
     if row is None or row["ends_at"] <= now: return FocusState(active=False,started_at=0,ends_at=0,remaining_s=0,server_now=now)
     return FocusState(active=True,started_at=row["started_at"],ends_at=row["ends_at"],remaining_s=row["ends_at"]-now,server_now=now)
 
+def active_in_transaction(c, device_id):
+    row = _row(c, device_id)
+    return row is not None and row["ends_at"] > int(time.time())
+
 def focus_active(device_id):
     with closing(db()) as c:
-        row=_row(c,device_id)
-        return row is not None and row["ends_at"] > int(time.time())
+        return active_in_transaction(c, device_id)
 
 @router.get("/v1/focus/state",response_model=FocusState)
 def focus_state(device_id:str,x_auth:str=Header(default=""),x_device_secret:str=Header(default="")):
@@ -80,33 +82,24 @@ def focus_start(body:FocusStartRequest,x_auth:str=Header(default=""),x_device_se
     if not 1 <= body.minutes <= MAX_FOCUS_MINUTES: raise HTTPException(400,"invalid focus duration")
     # Check configuration without granting any administrative action.
     require_configured_key(ADMIN_KEY,"admin key")
-    now=int(time.time())
     with closing(db()) as c,c:
         c.execute("BEGIN IMMEDIATE"); _device(c,body.device_id,x_auth,x_device_secret)
+        now=int(time.time())
         row=_row(c,body.device_id); active=row is not None and row["ends_at"] > now
         started=row["started_at"] if active else now
         end=max(row["ends_at"],now+body.minutes*60) if active else now+body.minutes*60
         c.execute("INSERT INTO focus_lock VALUES (?,?,?) ON CONFLICT(device_id) DO UPDATE SET started_at=excluded.started_at,ends_at=excluded.ends_at",(body.device_id,started,end))
+        # An ordinary break must not survive into a focus session.
+        c.execute("UPDATE lock_state SET active_break_started_at=NULL,active_break_used_ms=0 WHERE device_id=?", (body.device_id,))
         return _state(_row(c,body.device_id),now)
 
 @router.post("/v1/focus/end",response_model=FocusState)
 def focus_end(body:FocusEndRequest,x_auth:str=Header(default=""),x_device_secret:str=Header(default=""),x_admin:str=Header(default="")):
-    now=int(time.time()); rejected=0
     with closing(db()) as c,c:
         c.execute("BEGIN IMMEDIATE"); _device(c,body.device_id,x_auth,x_device_secret)
-        require_configured_key(ADMIN_KEY,"admin key")
-        c.execute("INSERT INTO focus_admin_attempt(device_id) VALUES (?) ON CONFLICT DO NOTHING",(body.device_id,))
-        row=c.execute("SELECT * FROM focus_admin_attempt WHERE device_id=?",(body.device_id,)).fetchone()
-        if row["blocked_until"] > now: rejected=429
-        elif _same(x_admin,ADMIN_KEY):
-            c.execute("UPDATE focus_admin_attempt SET fails=0,blocked_until=0 WHERE device_id=?",(body.device_id,))
-            c.execute("UPDATE focus_lock SET ends_at=? WHERE device_id=? AND ends_at>?",(now,body.device_id,now))
-        else:
-            fails=row["fails"]+1 if row["blocked_until"] == 0 else 1
-            until=now+ADMIN_THROTTLE_SECONDS if fails >= ADMIN_MAX_FAILS else 0
-            c.execute("UPDATE focus_admin_attempt SET fails=?,blocked_until=? WHERE device_id=?",(fails,until,body.device_id))
-            rejected=401
-        state=_state(_row(c,body.device_id),now)
-    # Raising inside the transaction would roll back the failed-attempt counter.
-    if rejected: raise HTTPException(rejected,"too many attempts" if rejected == 429 else "bad admin key")
-    return state
+    require_admin(x_admin, ADMIN_KEY, DB_PATH)
+    with closing(db()) as c,c:
+        c.execute("BEGIN IMMEDIATE")
+        now=int(time.time())
+        c.execute("UPDATE focus_lock SET ends_at=? WHERE device_id=? AND ends_at>?",(now,body.device_id,now))
+        return _state(_row(c,body.device_id),now)
