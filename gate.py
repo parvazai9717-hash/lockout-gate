@@ -26,12 +26,13 @@ from pydantic import BaseModel
 
 import focus
 import work
+from server_auth import require_key
 
 # --------------------------------------------------------------------- config
 
 DB_PATH = os.getenv("LOCKOUT_DB", "/var/lib/lockout/gate.db")
-DEVICE_KEY = os.getenv("LOCKOUT_DEVICE_KEY", "change-me")        # compiled into the APK
-ADMIN_KEY = os.getenv("LOCKOUT_ADMIN_KEY", "change-me-too")      # NOT on the phone
+DEVICE_KEY = os.getenv("LOCKOUT_DEVICE_KEY", "")                # compiled into the personal APK
+ADMIN_KEY = os.getenv("LOCKOUT_ADMIN_KEY", "")                  # NOT on the phone
 TZ = ZoneInfo(os.getenv("LOCKOUT_TZ", "Asia/Karachi"))
 LIMIT_MS = int(os.getenv("LOCKOUT_LIMIT_MIN", "30")) * 60_000
 
@@ -115,8 +116,7 @@ def check(body: CheckIn, x_auth: str = Header(default="")) -> Verdict:
     Returns allowed=False once the day's budget is spent, and keeps returning it
     until the server's own date rolls over or an admin override is in effect.
     """
-    if x_auth != DEVICE_KEY:
-        raise HTTPException(401, "bad device key")
+    require_key(x_auth, DEVICE_KEY, "device key")
 
     day = today()
 
@@ -186,8 +186,7 @@ def override(
     The only escape hatch. Requires ADMIN_KEY, which is deliberately not on the
     phone — so unlocking early means physically going and getting it.
     """
-    if x_admin != ADMIN_KEY:
-        raise HTTPException(401, "bad admin key")
+    require_key(x_admin, ADMIN_KEY, "admin key")
     if not 1 <= minutes <= 240:
         raise HTTPException(400, "minutes must be 1..240")
 
@@ -206,8 +205,7 @@ def override(
 @app.get("/v1/status")
 def status(device_id: str, x_admin: str = Header(default="")) -> dict:
     """Read-only introspection. Admin-gated so the phone can't poll its own state."""
-    if x_admin != ADMIN_KEY:
-        raise HTTPException(401, "bad admin key")
+    require_key(x_admin, ADMIN_KEY, "admin key")
 
     with closing(db()) as conn:
         row = conn.execute(

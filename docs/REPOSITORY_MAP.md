@@ -41,6 +41,8 @@ The public release keeps `canRetrieveWindowContent=false` and has no Home redire
 
 ## Review limits and release work
 
+20 October security follow-up: the owner has now tested the integrated personal build and reports it functioning. See SECURITY_REVIEW.md for server hardening and the verified AppBlock timed Strict Mode example. Do not treat the existing preview/release difference as a resolved product decision: the owner wants strict protection retained, and the public implementation and review requirements remain open.
+
 This review traced the current enforcement, storage, UI controllers, network calls, server routes, build configuration and archived feature changes. Compilation, lint and focused tests do not prove every OEM screen or rule is bug-free. Do not claim a complete real-device audit without the owner testing the new build.
 
 Before public distribution: rotate the historically committed key, replace shared master-admin recovery with user-owned provisioning, audit or retire unused compatibility routes (including their legacy authentication/photo-upload behavior), complete real-device tests, sign the release, and complete the Play declarations. No server deployment is required for the arrow/text/settings changes in this revision.

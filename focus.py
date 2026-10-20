@@ -10,6 +10,7 @@ import time
 from contextlib import closing
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
+from server_auth import require_configured_key, require_key
 
 router=APIRouter()
 DB_PATH=os.getenv("LOCKOUT_DB","/var/lib/lockout/gate.db")
@@ -35,8 +36,7 @@ def _same(a,b):
     return hmac.compare_digest(a.encode(),b.encode())
 
 def _device(c,device_id,key,secret):
-    if not DEVICE_KEY or DEVICE_KEY == "change-me": raise HTTPException(503,"focus server not configured")
-    if not _same(key,DEVICE_KEY): raise HTTPException(401,"bad device key")
+    require_key(key,DEVICE_KEY,"device key")
     if not 1 <= len(device_id) <= 100 or not 32 <= len(secret) <= 256: raise HTTPException(400,"device identity required")
     digest=hashlib.sha256(secret.encode()).hexdigest()
     c.execute("INSERT INTO focus_device VALUES (?,?) ON CONFLICT DO NOTHING",(device_id,digest))
@@ -78,7 +78,8 @@ def focus_state(device_id:str,x_auth:str=Header(default=""),x_device_secret:str=
 @router.post("/v1/focus/start",response_model=FocusState)
 def focus_start(body:FocusStartRequest,x_auth:str=Header(default=""),x_device_secret:str=Header(default="")):
     if not 1 <= body.minutes <= MAX_FOCUS_MINUTES: raise HTTPException(400,"invalid focus duration")
-    if not ADMIN_KEY or ADMIN_KEY == "change-me-too": raise HTTPException(503,"admin recovery must be configured before starting")
+    # Check configuration without granting any administrative action.
+    require_configured_key(ADMIN_KEY,"admin key")
     now=int(time.time())
     with closing(db()) as c,c:
         c.execute("BEGIN IMMEDIATE"); _device(c,body.device_id,x_auth,x_device_secret)
@@ -93,7 +94,7 @@ def focus_end(body:FocusEndRequest,x_auth:str=Header(default=""),x_device_secret
     now=int(time.time()); rejected=0
     with closing(db()) as c,c:
         c.execute("BEGIN IMMEDIATE"); _device(c,body.device_id,x_auth,x_device_secret)
-        if not ADMIN_KEY or ADMIN_KEY == "change-me-too": raise HTTPException(503,"admin key not configured")
+        require_configured_key(ADMIN_KEY,"admin key")
         c.execute("INSERT INTO focus_admin_attempt(device_id) VALUES (?) ON CONFLICT DO NOTHING",(body.device_id,))
         row=c.execute("SELECT * FROM focus_admin_attempt WHERE device_id=?",(body.device_id,)).fetchone()
         if row["blocked_until"] > now: rejected=429

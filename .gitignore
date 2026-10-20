@@ -6,6 +6,16 @@ venv/
 
 # Server runtime data (local dev only; production data lives on the mounted volume)
 *.db
+*.db-*
+*.db.*
+*.sqlite
+*.sqlite3
+
+# Signing identities and local proof uploads must never enter source history.
+*.jks
+*.keystore
+*.p12
+proofs/
 
 # Android / Gradle
 android/.gradle/

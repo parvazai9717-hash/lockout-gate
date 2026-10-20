@@ -42,9 +42,11 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
 import focus
 import gemini_verify
+from server_auth import require_key
 
 router = APIRouter()
 
@@ -53,7 +55,7 @@ router = APIRouter()
 # share the same environment, so the values are identical in practice.
 
 DB_PATH = os.getenv("LOCKOUT_DB", "/var/lib/lockout/gate.db")
-DEVICE_KEY = os.getenv("LOCKOUT_DEVICE_KEY", "change-me")
+DEVICE_KEY = os.getenv("LOCKOUT_DEVICE_KEY", "")
 PROOF_DIR = os.getenv("LOCKOUT_PROOF_DIR", os.path.join(os.path.dirname(DB_PATH) or ".", "proofs"))
 MAX_PROOF_BYTES = 20 * 1024 * 1024  # inline Gemini upload cap
 TZ = ZoneInfo(os.getenv("LOCKOUT_TZ", "Asia/Karachi"))
@@ -119,8 +121,7 @@ def init_schema() -> None:
 
 
 def _check_auth(x_auth: str) -> None:
-    if not hmac.compare_digest(x_auth.encode(), DEVICE_KEY.encode()):
-        raise HTTPException(401, "bad device key")
+    require_key(x_auth, DEVICE_KEY, "device key")
 
 
 def _hash_secret(secret: str) -> str:
@@ -347,11 +348,13 @@ async def break_claim(
     if not content_type.startswith("image/"):
         raise HTTPException(400, f"eating break proof must be a photo, got: {content_type}")
 
-    media_bytes = await file.read()
+    # Read at most the accepted limit plus a sentinel byte, rather than loading
+    # an arbitrarily large uploaded file into process memory.
+    media_bytes = await file.read(MAX_PROOF_BYTES + 1)
     if len(media_bytes) > MAX_PROOF_BYTES:
         raise HTTPException(413, "photo too large (20MB limit)")
 
-    result = gemini_verify.verify_meal(media_bytes, content_type)
+    result = await run_in_threadpool(gemini_verify.verify_meal, media_bytes, content_type)
 
     with closing(db()) as conn, conn:
         if result.accepted:

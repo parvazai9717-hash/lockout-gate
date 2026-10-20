@@ -64,17 +64,17 @@ def _ask_gemini(prompt: str, media_bytes: bytes, mime_type: str) -> VerifyResult
             confidence=parsed.confidence,
             reasoning=parsed.reasoning,
         )
-    except genai_errors.APIError as e:
+    except genai_errors.APIError:
         return VerifyResult(
             accepted=False,
             confidence=0.0,
-            reasoning=f"rejected: verification service error ({e.code}: {e.message})",
+            reasoning="rejected: verification service unavailable; try again later",
         )
-    except Exception as e:  # malformed response, bad key, etc. — fail closed
+    except Exception:  # malformed response, bad key, etc. — fail closed
         return VerifyResult(
             accepted=False,
             confidence=0.0,
-            reasoning=f"rejected: could not verify ({e})",
+            reasoning="rejected: could not verify; try again later",
         )
 
 

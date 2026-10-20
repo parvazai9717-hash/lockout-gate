@@ -1,5 +1,7 @@
-fastapi==0.115.6
+fastapi==0.143.5
+# Pin the audited ASGI layer rather than inheriting an older vulnerable version.
+starlette==1.9.0
 uvicorn[standard]==0.34.0
 pydantic==2.13.5
-python-multipart==0.0.20
+python-multipart==0.0.32
 google-genai==2.23.0
