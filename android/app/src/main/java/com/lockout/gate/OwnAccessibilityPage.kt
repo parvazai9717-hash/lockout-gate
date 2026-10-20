@@ -11,8 +11,12 @@ data class SettingsNode(
 )
 
 object OwnAccessibilityPage {
+    internal const val MAX_NODES = 250
+    // Samsung's observed service detail hierarchy is 21 nodes deep.
+    internal const val MAX_DEPTH = 32
     private val whitespace = Regex("\\s+")
     private val titleIds = setOf("action_bar_title", "toolbar_title", "collapsing_toolbar_title", "title")
+    private val toolbarIds = setOf("action_bar", "toolbar")
     fun shouldReturnHome(
         appLabel: String,
         serviceDescription: String,
@@ -34,9 +38,12 @@ object OwnAccessibilityPage {
         var overflow = false
 
         fun visit(node: SettingsNode, inList: Boolean, inToolbar: Boolean, depth: Int) {
-            if (++visited > 250 || depth > 16) { overflow = true; return }
+            if (++visited > MAX_NODES || depth > MAX_DEPTH) { overflow = true; return }
             val list = inList || node.className.contains("RecyclerView") || node.className.contains("ListView")
-            val toolbar = inToolbar || node.className.contains("Toolbar", ignoreCase = true)
+            // Samsung exposes its action bar as android.view.ViewGroup, with
+            // an unlabelled TextView child rather than a Toolbar/title view ID.
+            val toolbar = inToolbar || node.className.contains("Toolbar", ignoreCase = true) ||
+                node.viewId.substringAfterLast('/') in toolbarIds
             val text = node.text.normalized()
             if (!list && toolbar && text.isNotEmpty()) toolbarTitles += text
             val titleId = node.viewId.substringAfterLast('/') in titleIds

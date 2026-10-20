@@ -33,6 +33,8 @@ The owner explicitly requested this sequence: Settings > Accessibility > Install
 
 Today's debug preview alone may inspect Android Settings labels. It requires the current app's exact page heading, an enabled switch and Accessibility-service detail evidence. An Installed Apps row, another app's heading, a disabled-service setup page and an initial permission dialog are insufficient. Inspection is bounded and labels are neither logged nor sent. It runs only after onboarding while protection is enabled. Pausing protection allows service changes; other settings and uninstall are not redirected. Samsung behavior still needs the owner's manual Run and check.
 
+Samsung follow-up: the owner reported the initial guard did not trigger. Read-only inspection confirmed protection enabled, setup complete and the correct preview service bound with content retrieval available. Its actual Settings page uses `com.android.settings:id/action_bar` on a generic ViewGroup with an ID-less title child, and a hierarchy 21 levels deep. The earlier Toolbar-only/16-level assumptions both failed. The current matcher recognizes that action-bar boundary and shares a 32-level/250-node bound with the Android extractor. A sanitized capture of this actual Settings page is now a JVM fixture, including negative coverage for a Wispr heading in the same layout. Do not replace observed OEM evidence with hypothetical UI mocks alone.
+
 The public release keeps `canRetrieveWindowContent=false` and has no Home redirect. This separation is intentional: Google Play's Accessibility rules prohibit preventing users from disabling a service for this self-control use case. See https://support.google.com/googleplay/android-developer/answer/16558241.
 
 ## Review limits and release work

@@ -17,7 +17,10 @@ object PersonalAccessibilityGuard {
         var overflow = false
         @Suppress("DEPRECATION")
         fun snapshot(node: AccessibilityNodeInfo, depth: Int): SettingsNode {
-            if (++count > 250 || depth > 16) { overflow = true; return SettingsNode() }
+            if (++count > OwnAccessibilityPage.MAX_NODES || depth > OwnAccessibilityPage.MAX_DEPTH) {
+                overflow = true
+                return SettingsNode()
+            }
             val children = mutableListOf<SettingsNode>()
             for (i in 0 until node.childCount) {
                 if (overflow) break

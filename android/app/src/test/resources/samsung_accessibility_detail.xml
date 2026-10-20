@@ -1,0 +1,81 @@
+<?xml version='1.0' encoding='utf-8'?>
+<node class="android.widget.FrameLayout" checkable="false" checked="false">
+  <node class="android.widget.LinearLayout" checkable="false" checked="false">
+    <node class="android.widget.FrameLayout" checkable="false" checked="false">
+      <node class="android.widget.LinearLayout" resource-id="com.android.settings:id/action_bar_root" checkable="false" checked="false">
+        <node class="android.widget.FrameLayout" resource-id="android:id/content" checkable="false" checked="false">
+          <node class="android.widget.FrameLayout" resource-id="com.android.settings:id/included_window_inset" checkable="false" checked="false">
+            <node class="android.widget.LinearLayout" resource-id="com.android.settings:id/content_parent" checkable="false" checked="false">
+              <node class="android.widget.ScrollView" resource-id="com.android.settings:id/coordinator" checkable="false" checked="false">
+                <node class="android.widget.LinearLayout" resource-id="com.android.settings:id/app_bar" checkable="false" checked="false">
+                  <node class="android.widget.FrameLayout" resource-id="com.android.settings:id/collapsing_app_bar" checkable="false" checked="false">
+                    <node class="android.view.ViewGroup" resource-id="com.android.settings:id/action_bar" checkable="false" checked="false">
+                      <node class="android.widget.ImageButton" checkable="false" checked="false" />
+                      <node class="android.widget.TextView" text="Lockout Gate Preview" checkable="false" checked="false" />
+                    </node>
+                  </node>
+                </node>
+                <node class="android.widget.LinearLayout" resource-id="com.android.settings:id/content_layout" checkable="false" checked="false">
+                  <node class="android.widget.FrameLayout" resource-id="com.android.settings:id/content_frame" checkable="false" checked="false">
+                    <node class="android.widget.LinearLayout" checkable="false" checked="false">
+                      <node class="android.widget.LinearLayout" checkable="false" checked="false">
+                        <node class="android.widget.LinearLayout" checkable="false" checked="false">
+                          <node class="androidx.appcompat.widget.SeslSwitchBar" resource-id="com.android.settings:id/switch_bar" checkable="false" checked="false">
+                            <node class="androidx.appcompat.widget.LinearLayoutCompat" checkable="false" checked="false">
+                              <node class="android.widget.LinearLayout" resource-id="com.android.settings:id/sesl_switchbar_container" text="Lockout Gate Preview" checkable="false" checked="false">
+                                <node class="android.widget.TextView" resource-id="com.android.settings:id/sesl_switchbar_text" text="On" checkable="false" checked="false" />
+                                <node class="android.widget.Switch" resource-id="com.android.settings:id/sesl_switchbar_switch" checkable="true" checked="true" />
+                              </node>
+                            </node>
+                          </node>
+                        </node>
+                        <node class="android.widget.FrameLayout" resource-id="com.android.settings:id/main_content" checkable="false" checked="false">
+                          <node class="android.widget.LinearLayout" resource-id="com.android.settings:id/container_material" checkable="false" checked="false">
+                            <node class="android.widget.FrameLayout" resource-id="android:id/list_container" checkable="false" checked="false">
+                              <node class="androidx.recyclerview.widget.RecyclerView" resource-id="com.android.settings:id/recycler_view" checkable="false" checked="false">
+                                <node class="android.widget.LinearLayout" checkable="false" checked="false">
+                                  <node class="android.widget.LinearLayout" checkable="false" checked="false">
+                                    <node class="android.widget.RelativeLayout" checkable="false" checked="false">
+                                      <node class="android.widget.RelativeLayout" resource-id="com.android.settings:id/title_frame" checkable="false" checked="false">
+                                        <node class="android.widget.TextView" resource-id="android:id/title" text="Lockout Gate Preview shortcut" checkable="false" checked="false" />
+                                      </node>
+                                    </node>
+                                    <node class="android.widget.LinearLayout" resource-id="android:id/widget_frame" checkable="false" checked="false">
+                                      <node class="android.widget.LinearLayout" checkable="false" checked="false">
+                                        <node class="android.view.View" resource-id="com.android.settings:id/switch_divider_normal" checkable="false" checked="false" />
+                                        <node class="android.widget.Switch" resource-id="android:id/switch_widget" checkable="true" checked="false" />
+                                      </node>
+                                    </node>
+                                  </node>
+                                </node>
+                                <node class="android.widget.LinearLayout" checkable="false" checked="false">
+                                  <node class="android.widget.RelativeLayout" checkable="false" checked="false">
+                                    <node class="android.widget.RelativeLayout" resource-id="com.android.settings:id/title_frame" checkable="false" checked="false">
+                                      <node class="android.widget.TextView" resource-id="android:id/title" text="App info" checkable="false" checked="false" />
+                                    </node>
+                                  </node>
+                                </node>
+                                <node class="android.widget.LinearLayout" checkable="false" checked="false">
+                                  <node class="android.widget.LinearLayout" checkable="false" checked="false">
+                                    <node class="android.widget.TextView" resource-id="android:id/title" text="Personal preview: detects foreground apps to block your selections. In Android Settings only, reads visible labels to recognize Lockout Gate Preview's own Accessibility page and return you Home while protection is on. Other apps' settings stay accessible. No screen text is saved or transmitted. Pause protection inside the app before changing its Accessibility service." checkable="false" checked="false" />
+                                  </node>
+                                </node>
+                                <node class="android.widget.TextView" checkable="false" checked="false" />
+                              </node>
+                            </node>
+                          </node>
+                        </node>
+                      </node>
+                    </node>
+                  </node>
+                </node>
+                <node class="android.view.View" resource-id="com.android.settings:id/round_corner" checkable="false" checked="false" />
+              </node>
+            </node>
+          </node>
+        </node>
+      </node>
+    </node>
+  </node>
+  <node class="android.view.View" resource-id="android:id/navigationBarBackground" checkable="false" checked="false" />
+</node>

@@ -4,13 +4,15 @@ Validated 19 October 2026. This replaces the local-only 0.2 preview and combines
 
 ## Current arrow and personal settings update
 
-- 28 JVM tests pass: the previous 16 plus 12 own-service page matcher cases. These include Wispr Flow, the Installed Apps list, initial setup, another Lockout install, notifications and stale window-title evidence.
+- 31 JVM tests pass: the previous 16 plus 15 own-service page matcher cases. These include Wispr Flow, the Installed Apps list, initial setup, another Lockout install, notifications, stale window-title evidence and the actual Samsung page hierarchy.
 - 15 server regressions pass. No server behavior changed or deployment was needed for this update.
 - Habit month controls are vector arrow images with accessible labels. All tracked source/resource text passes `tools/check_text_encoding.py`; the checker accepts valid Unicode and rejects known corrupted samples. It also runs in CI.
 - Debug and release APK metadata were inspected: debug alone allows window-content retrieval; release remains false and subscribes only to window-state changes. The actual preview redirect is gated by `BuildConfig.DEBUG`, setup completion and enabled protection, and inspects only Settings.
 - Current lint: zero errors, 158 warnings. New APKs/bundle and instrumentation APK are built, but are not installed by the agent. The owner explicitly requested to press Studio Run personally.
 - The new Settings redirect and arrows still need the owner's Samsung UI check after Run. Pure matcher tests do not certify Samsung's actual view hierarchy. The prior 21 phone tests below belong to the earlier preview; no phone test was rerun for this update.
 - Read REPOSITORY_MAP.md for the active main branch, four archived feature snapshots, source paths and remaining release limits.
+
+Samsung correction after the owner's report: read-only phone inspection confirmed the expected preview installed and bound, protection enabled and onboarding completed. The original assumptions missed Samsung's generic ViewGroup action-bar title and rejected its 21-level hierarchy. The matcher and extractor now share a 32-level/250-node bound and recognize the observed action-bar container. A sanitized Settings-only XML fixture preserves the actual hierarchy without device IDs or screen coordinates. Its own-page case passes; replacing the heading with Wispr Flow is rejected. No permission was changed or app installed during diagnosis. The owner still needs to Run this corrected version and confirm the real redirect.
 
 ## Previous integrated preview validation
 - 16 JVM tests: eleven usage accounting, four focus clock and one API JSON contract test.

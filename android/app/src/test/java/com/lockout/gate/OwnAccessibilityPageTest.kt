@@ -3,6 +3,8 @@ package com.lockout.gate
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.w3c.dom.Element
+import javax.xml.parsers.DocumentBuilderFactory
 
 class OwnAccessibilityPageTest {
     private val own = "Lockout Gate Preview"
@@ -65,5 +67,39 @@ class OwnAccessibilityPageTest {
     @Test fun oversizedPageIsLeftAlone() {
         val many = List(260) { SettingsNode(text = "Setting $it") }
         assertFalse(matches(page(title(own), toggle(), SettingsNode(text = "Use service"), SettingsNode(children = many))))
+    }
+
+    private fun observedSamsungPage(): SettingsNode {
+        val factory = DocumentBuilderFactory.newInstance()
+        factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+        val document = checkNotNull(javaClass.getResourceAsStream("/samsung_accessibility_detail.xml")).use {
+            factory.newDocumentBuilder().parse(it)
+        }
+        fun read(element: Element): SettingsNode {
+            val children = (0 until element.childNodes.length).mapNotNull {
+                (element.childNodes.item(it) as? Element)?.let { child -> read(child) }
+            }
+            return SettingsNode(text = element.getAttribute("text"), className = element.getAttribute("class"),
+                viewId = element.getAttribute("resource-id"), checked = element.getAttribute("checkable") == "true" &&
+                    element.getAttribute("checked") == "true", children = children)
+        }
+        return read(document.documentElement)
+    }
+
+    @Test fun actualSamsungHierarchyRecognizesOurPage() {
+        assertTrue(matches(observedSamsungPage()))
+    }
+
+    @Test fun samsungHierarchyWithWisprHeadingIsNotOurPage() {
+        fun otherApp(node: SettingsNode): SettingsNode = node.copy(
+            text = node.text.replace(own, "Wispr Flow"), children = node.children.map { otherApp(it) },
+        )
+        assertFalse(matches(otherApp(observedSamsungPage())))
+    }
+
+    @Test fun unexpectedlyDeepHierarchyIsLeftAlone() {
+        var tree = page(title(own), toggle(), SettingsNode(text = "Use service"))
+        repeat(OwnAccessibilityPage.MAX_DEPTH + 1) { tree = page(tree) }
+        assertFalse(matches(tree))
     }
 }
