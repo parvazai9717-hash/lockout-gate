@@ -11,6 +11,8 @@
 
 The candidate is ready for the owner's app test after a successful build/sync, not a completed Play submission. Public per-user authentication/recovery, credential rotation, Strict Mode review, signing/account/testing requirements and broader device/battery checks remain in PLAY_RELEASE.md and SECURITY_REVIEW.md.
 
+Server deployment completed on 20 October: e1fead3 was built on Linux and started with a verified pre-security SQLite snapshot. Live health/auth/body-limit checks passed; an isolated lock preserved identical timestamps across deployment and the existing phone continued normal state polling. See DEPLOYMENT_2026-10-20.md. No live admin-key guessing test was performed. This did not change Android source or install anything on the phone.
+
 Validated 19 October 2026. This replaces the local-only 0.2 preview and combines the usage/habit fixes, Studio configuration and Claude's Keep Me Out feature.
 
 ## Current arrow and personal settings update

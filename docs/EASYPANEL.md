@@ -1,6 +1,6 @@
 # Easy Panel: deployment checklist
 
-Keep Me Out uses the Python server; the earlier focus integration was already deployed and checked. The 20 October security follow-up updates authentication defenses and dependencies and still needs its own preserved-data deployment and live checks. Standard app blocking, wallpaper and habits do not require this server.
+Keep Me Out uses the Python server. The 20 October security revision `e1fead3` is deployed and its live checks passed with the existing data preserved; see DEPLOYMENT_2026-10-20.md. Standard app blocking, wallpaper and habits do not require this server.
 
 Use repository parvazai9717-hash/lockout-gate, canonical branch main after the reviewed integration, build path /, root Dockerfile, internal port 8080 and the existing HTTPS app domain. Preserve the **lockout-data** volume at **/var/lib/lockout**. Startup creates a consistent SQLite backup at **/var/lib/lockout/gate.db.before-focus-v1.bak** before adding focus tables, and never overwrites it. No scheduled external backup service was created. Do not recreate/delete the service or volume.
 
