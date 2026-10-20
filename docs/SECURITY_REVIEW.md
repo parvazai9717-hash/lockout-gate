@@ -15,7 +15,7 @@ Android references:
 - https://developer.android.com/security/fraud-prevention/activities
 - https://developer.android.com/identity/data/autobackup
 
-46 server regressions pass, including parallel admin guesses, shared-route cooldown/restart/migration, parallel usage reports, simultaneous focus/break requests, delayed/concurrent photo results, and streamed/lying/unauthenticated oversized requests. Android build results are recorded in the accompanying validation handoff. Timer persistence cases run under simulated Android and are also provided as device instrumentation tests. No disposable emulator is installed, and the owner explicitly prohibited installing/running tests on the personal phone; device instrumentation and live Samsung accuracy checks therefore remain pending owner testing.
+47 server regressions pass, including parallel admin guesses, shared-route cooldown/restart/migration, parallel usage reports, simultaneous focus/break requests, delayed/concurrent photo results, streamed/lying/unauthenticated oversized requests and a consistent pre-security upgrade snapshot. Startup saves and integrity-checks a new `.before-security-v2.bak` SQLite backup before the admin migration, preserving the older snapshot and existing sessions. Android build results are recorded in the accompanying validation handoff. Timer persistence cases run under simulated Android and are also provided as device instrumentation tests. No disposable emulator is installed, and the owner explicitly prohibited installing/running tests on the personal phone; device instrumentation and live Samsung accuracy checks therefore remain pending owner testing.
 
 ## Changes and checks
 

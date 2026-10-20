@@ -65,6 +65,7 @@ def db() -> sqlite3.Connection:
 def init_db() -> None:
     os.makedirs(os.path.dirname(DB_PATH) or ".", exist_ok=True)
     backup_before_focus()
+    backup_before_security()
     with closing(db()) as conn, conn:
         conn.executescript(SCHEMA)
     work.init_schema()
@@ -73,15 +74,26 @@ def init_db() -> None:
 
 def backup_before_focus() -> None:
     """Preserve the existing SQLite data once before adding focus tables."""
-    target = DB_PATH + ".before-focus-v1.bak"
+    backup_once(".before-focus-v1.bak", "Pre-focus")
+
+
+def backup_before_security() -> None:
+    """Take a fresh consistent snapshot before the shared-admin migration."""
+    backup_once(".before-security-v2.bak", "Pre-security")
+
+
+def backup_once(suffix: str, label: str) -> None:
+    target = DB_PATH + suffix
     if not os.path.isfile(DB_PATH) or os.path.exists(target):
         return
     pending = target + ".tmp"
     try:
         with closing(db()) as source, closing(sqlite3.connect(pending)) as destination:
             source.backup(destination)
+            if destination.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                raise RuntimeError("SQLite snapshot integrity check failed")
         os.replace(pending, target)
-        logging.getLogger("uvicorn.error").info("Pre-focus SQLite backup created in persistent storage.")
+        logging.getLogger("uvicorn.error").info("%s SQLite backup verified and saved in persistent storage.", label)
     finally:
         if os.path.exists(pending):
             os.remove(pending)
