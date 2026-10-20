@@ -1,0 +1,126 @@
+<?xml version='1.0' encoding='utf-8'?>
+<node class="android.widget.FrameLayout">
+  <node class="android.widget.LinearLayout">
+    <node class="android.widget.FrameLayout">
+      <node class="android.widget.LinearLayout" resource-id="com.android.settings:id/action_bar_root">
+        <node class="android.widget.FrameLayout" resource-id="android:id/content">
+          <node class="android.widget.FrameLayout" resource-id="com.android.settings:id/included_window_inset">
+            <node class="android.widget.LinearLayout" resource-id="com.android.settings:id/content_parent">
+              <node class="android.widget.ScrollView" resource-id="com.android.settings:id/coordinator">
+                <node class="android.widget.LinearLayout" resource-id="com.android.settings:id/app_bar">
+                  <node class="android.widget.FrameLayout" resource-id="com.android.settings:id/collapsing_app_bar">
+                    <node class="android.view.ViewGroup" resource-id="com.android.settings:id/action_bar">
+                      <node class="android.widget.ImageButton" />
+                      <node class="android.widget.TextView" text="App info" />
+                    </node>
+                  </node>
+                </node>
+                <node class="android.widget.LinearLayout" resource-id="com.android.settings:id/content_layout">
+                  <node class="android.widget.FrameLayout" resource-id="com.android.settings:id/content_frame">
+                    <node class="android.widget.LinearLayout">
+                      <node class="android.widget.LinearLayout">
+                        <node class="android.widget.FrameLayout" resource-id="com.android.settings:id/main_content">
+                          <node class="android.widget.LinearLayout" resource-id="com.android.settings:id/container_material">
+                            <node class="android.widget.FrameLayout" resource-id="android:id/list_container">
+                              <node class="androidx.recyclerview.widget.RecyclerView" resource-id="com.android.settings:id/recycler_view">
+                                <node class="android.widget.TextView" />
+                                <node class="android.widget.FrameLayout">
+                                  <node class="android.widget.RelativeLayout" resource-id="com.android.settings:id/entity_header">
+                                    <node class="android.widget.ImageView" resource-id="com.android.settings:id/entity_header_icon" />
+                                    <node class="android.widget.LinearLayout">
+                                      <node class="android.widget.TextView" resource-id="com.android.settings:id/entity_header_title" text="Lockout Gate Preview" />
+                                      <node class="android.widget.TextView" resource-id="com.android.settings:id/entity_header_summary" />
+                                    </node>
+                                  </node>
+                                </node>
+                                <node class="android.widget.TextView" />
+                                <node class="android.widget.LinearLayout">
+                                  <node class="android.widget.RelativeLayout">
+                                    <node class="android.widget.RelativeLayout" resource-id="com.android.settings:id/title_frame">
+                                      <node class="android.widget.TextView" resource-id="android:id/title" />
+                                    </node>
+                                    <node class="android.widget.TextView" resource-id="android:id/summary" />
+                                  </node>
+                                </node>
+                                <node class="android.widget.LinearLayout">
+                                  <node class="android.widget.RelativeLayout">
+                                    <node class="android.widget.RelativeLayout" resource-id="com.android.settings:id/title_frame">
+                                      <node class="android.widget.TextView" resource-id="android:id/title" />
+                                    </node>
+                                    <node class="android.widget.TextView" resource-id="android:id/summary" />
+                                  </node>
+                                </node>
+                                <node class="android.widget.LinearLayout">
+                                  <node class="android.widget.RelativeLayout">
+                                    <node class="android.widget.RelativeLayout" resource-id="com.android.settings:id/title_frame">
+                                      <node class="android.widget.TextView" resource-id="android:id/title" />
+                                    </node>
+                                  </node>
+                                </node>
+                                <node class="android.widget.LinearLayout">
+                                  <node class="android.widget.LinearLayout">
+                                    <node class="android.widget.RelativeLayout">
+                                      <node class="android.widget.RelativeLayout" resource-id="com.android.settings:id/title_frame">
+                                        <node class="android.widget.TextView" resource-id="android:id/title" />
+                                      </node>
+                                      <node class="android.widget.TextView" resource-id="android:id/summary" />
+                                    </node>
+                                    <node class="android.widget.LinearLayout" resource-id="android:id/widget_frame">
+                                      <node class="android.widget.Switch" resource-id="android:id/switch_widget" />
+                                    </node>
+                                  </node>
+                                </node>
+                                <node class="android.widget.TextView" />
+                                <node class="android.widget.LinearLayout">
+                                  <node class="android.widget.RelativeLayout">
+                                    <node class="android.widget.RelativeLayout" resource-id="com.android.settings:id/title_frame">
+                                      <node class="android.widget.TextView" resource-id="android:id/title" />
+                                    </node>
+                                    <node class="android.widget.TextView" resource-id="android:id/summary" />
+                                  </node>
+                                </node>
+                                <node class="android.widget.TextView" />
+                                <node class="android.widget.LinearLayout">
+                                  <node class="android.widget.RelativeLayout">
+                                    <node class="android.widget.RelativeLayout" resource-id="com.android.settings:id/title_frame">
+                                      <node class="android.widget.TextView" resource-id="android:id/title" />
+                                    </node>
+                                    <node class="android.widget.TextView" resource-id="android:id/summary" />
+                                  </node>
+                                </node>
+                                <node class="android.widget.LinearLayout">
+                                  <node class="android.widget.RelativeLayout">
+                                    <node class="android.widget.RelativeLayout" resource-id="com.android.settings:id/title_frame">
+                                      <node class="android.widget.TextView" resource-id="android:id/title" />
+                                    </node>
+                                    <node class="android.widget.TextView" resource-id="android:id/summary" />
+                                  </node>
+                                </node>
+                                <node class="android.widget.LinearLayout">
+                                  <node class="android.widget.RelativeLayout" />
+                                </node>
+                              </node>
+                            </node>
+                          </node>
+                        </node>
+                      </node>
+                    </node>
+                  </node>
+                </node>
+                <node class="android.view.View" resource-id="com.android.settings:id/round_corner" />
+              </node>
+              <node class="android.widget.RelativeLayout" resource-id="com.android.settings:id/button_bar">
+                <node class="android.widget.LinearLayout" resource-id="com.android.settings:id/bottom_bar">
+                  <node class="android.widget.Button" resource-id="com.android.settings:id/button1" text="Open" />
+                  <node class="android.widget.Button" resource-id="com.android.settings:id/button3" text="Uninstall" />
+                  <node class="android.widget.Button" resource-id="com.android.settings:id/button4" text="Force stop" />
+                </node>
+              </node>
+            </node>
+          </node>
+        </node>
+      </node>
+    </node>
+  </node>
+  <node class="android.view.View" resource-id="android:id/navigationBarBackground" />
+</node>

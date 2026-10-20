@@ -4,15 +4,21 @@ import android.os.Build
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 
-/** Personal preview only. No uninstall, Usage Access, or other-service blocking. */
+/** Personal preview only: own Accessibility page and own removal UI. */
 object PersonalAccessibilityGuard {
     fun shouldReturnHome(event: AccessibilityEvent, appLabel: String, description: String,
                          readRoot: () -> AccessibilityNodeInfo?): Boolean {
         // Both code and service metadata disable content inspection in release.
-        if (!BuildConfig.DEBUG || event.packageName?.toString() != "com.android.settings") return false
+        val pkg = event.packageName?.toString() ?: return false
+        if (!BuildConfig.DEBUG || !OwnRemovalPage.canInspect(pkg)) return false
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
             event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) return false
         val root = readRoot() ?: return false
+        if (root.packageName?.toString() != pkg) {
+            @Suppress("DEPRECATION")
+            root.recycle()
+            return false
+        }
         var count = 0
         var overflow = false
         @Suppress("DEPRECATION")
@@ -41,6 +47,8 @@ object PersonalAccessibilityGuard {
         if (overflow) return false
         val titles = if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
             event.text.map { it.toString() } else emptyList()
-        return OwnAccessibilityPage.shouldReturnHome(appLabel, description, event.className?.toString().orEmpty(), titles, tree)
+        val windowClass = event.className?.toString().orEmpty()
+        return (pkg == "com.android.settings" && OwnAccessibilityPage.shouldReturnHome(appLabel, description, windowClass, titles, tree)) ||
+            OwnRemovalPage.shouldReturnHome(pkg, appLabel, windowClass, tree)
     }
 }

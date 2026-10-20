@@ -1,6 +1,6 @@
 package com.lockout.gate
 
-/** Labels are used only in the personal preview's Android Settings page guard. */
+/** Labels are used only in the personal preview's settings/removal guard. */
 data class SettingsNode(
     val text: String = "",
     val className: String = "",
