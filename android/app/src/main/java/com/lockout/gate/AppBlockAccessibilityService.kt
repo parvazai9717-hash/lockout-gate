@@ -233,7 +233,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
             lastFocusSyncAt=elapsed
             focusSyncJob=scope.launch {
                 try {
-                    val response=FocusClient.api.focusState(Config.DEVICE_KEY,store.focusDeviceId)
+                    val response=FocusClient.state(store)
                     if (response.isSuccessful) response.body()?.let { store.updateFocus(it) }
                 } catch (e:kotlinx.coroutines.CancellationException) { throw e }
                 catch (_:Exception) { /* Cached focus time works offline; ordinary breaks stay responsive. */ }

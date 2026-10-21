@@ -185,6 +185,21 @@ class SessionStore(context: Context) {
             check(prefs.edit().putString("focus_device_secret",it).commit())
         }
     }
+    val publicFocusEnrolled: Boolean get() = prefs.getBoolean("public_focus_enrolled", false)
+    fun savePublicFocusAccount(id: String, secret: String): Boolean = synchronized(LOCK) {
+        check(!BuildConfig.PERSONAL_SETTINGS_GUARD)
+        if ((focusActive() && id != focusDeviceId) || id.length !in 16..100 || secret.length !in 32..256) return@synchronized false
+        // Recovery keys are deliberately never accepted or persisted here.
+        prefs.edit().putString("focus_device_id", id).putString("focus_device_secret", secret)
+            .putBoolean("public_focus_enrolled", true).commit()
+    }
+    fun clearPublicFocusAccount(): Boolean = synchronized(LOCK) {
+        check(!BuildConfig.PERSONAL_SETTINGS_GUARD)
+        if (focusActive()) return@synchronized false
+        prefs.edit().remove("focus_device_id").remove("focus_device_secret")
+            .remove("public_focus_enrolled").remove("focus_server_now")
+            .remove("focus_admin_cleared_at").commit()
+    }
     fun focusRemainingMs(): Long = FocusClock.remaining(
         prefs.getLong("focus_end_wall_ms",0), prefs.getLong("focus_end_elapsed_ms",0),
         prefs.getInt("focus_boot_count",-1), bootCount(), System.currentTimeMillis(), SystemClock.elapsedRealtime())

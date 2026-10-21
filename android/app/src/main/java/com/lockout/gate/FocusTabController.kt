@@ -26,7 +26,7 @@ import java.util.Date
  */
 class FocusTabController(
     private val activity: AppCompatActivity,
-    root: View,
+    private val root: View,
     private val store: SessionStore,
 ) {
     private val statusText: TextView = root.findViewById(R.id.focusStatusText)
@@ -40,8 +40,12 @@ class FocusTabController(
     private var suppressListeners = false
     private var refreshJob: kotlinx.coroutines.Job? = null
     private var starting = false
+    private val accountSetup = PublicFocusSetup(activity, store) { render() }
 
     init {
+        root.findViewById<Button>(R.id.publicFocusEnrollButton).setOnClickListener { accountSetup.enroll() }
+        root.findViewById<Button>(R.id.publicFocusRecoverButton).setOnClickListener { accountSetup.recover() }
+        root.findViewById<Button>(R.id.publicFocusDeleteButton).setOnClickListener { accountSetup.delete() }
         // Presets are generated from Config so there's one list to edit.
         Config.FOCUS_PRESETS.forEach { (label, minutes) ->
             val chip = activity.layoutInflater.inflate(R.layout.chip_choice, presetGroup, false) as Chip
@@ -81,7 +85,7 @@ class FocusTabController(
         if (!FocusClient.configured || refreshJob?.isActive == true) return
         refreshJob = activity.lifecycleScope.launch {
             try {
-                val resp = FocusClient.api.focusState(Config.DEVICE_KEY, store.focusDeviceId)
+                val resp = FocusClient.state(store)
                 val body = resp.body()
                 if (resp.isSuccessful && body != null) {
                     store.updateFocus(body)
@@ -95,10 +99,21 @@ class FocusTabController(
 
     private fun render() {
         val serviceOn = isBlockingServiceEnabled()
+        val publicPanel = root.findViewById<View>(R.id.publicFocusAccountPanel)
+        publicPanel.visibility = if (FocusClient.publicMode && FocusClient.connectionAvailable) View.VISIBLE else View.GONE
+        publicPanel.findViewById<Button>(R.id.publicFocusEnrollButton).visibility = if (store.publicFocusEnrolled) View.GONE else View.VISIBLE
+        publicPanel.findViewById<Button>(R.id.publicFocusDeleteButton).visibility = if (store.publicFocusEnrolled) View.VISIBLE else View.GONE
+        publicPanel.findViewById<Button>(R.id.publicFocusEnrollButton).isEnabled = !accountSetup.busy
+        publicPanel.findViewById<Button>(R.id.publicFocusRecoverButton).isEnabled = !store.focusActive() && !accountSetup.busy
+        publicPanel.findViewById<Button>(R.id.publicFocusDeleteButton).isEnabled = !store.focusActive() && !accountSetup.busy
+        publicPanel.findViewById<TextView>(R.id.publicFocusAccountMessage).setText(
+            if (store.publicFocusEnrolled) R.string.public_focus_ready_message else R.string.public_focus_setup_message)
         setupCard.visibility = if (serviceOn) View.GONE else View.VISIBLE
-        startButton.isEnabled = serviceOn && FocusClient.configured && !store.focusActive()
+        startButton.isEnabled = serviceOn && FocusClient.configured && !store.focusActive() && !accountSetup.busy && !starting
 
-        statusText.text = if (!FocusClient.configured) activity.getString(R.string.focus_connection_missing) else if (store.focusActive()) {
+        statusText.text = if (FocusClient.publicMode && FocusClient.connectionAvailable && !store.publicFocusEnrolled)
+            activity.getString(R.string.public_focus_setup_message)
+        else if (!FocusClient.configured) activity.getString(R.string.focus_connection_missing) else if (store.focusActive()) {
             activity.getString(
                 R.string.focus_status_active,
                 DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
@@ -156,14 +171,12 @@ class FocusTabController(
     }
 
     private fun start(minutes: Long) {
-        if (starting || !FocusClient.configured) return
+        if (starting || accountSetup.busy || !FocusClient.configured) return
         starting = true
         startButton.isEnabled = false
         activity.lifecycleScope.launch {
             try {
-                val resp = FocusClient.api.startFocus(
-                    Config.DEVICE_KEY, FocusStartRequest(store.focusDeviceId, minutes.toInt()),
-                )
+                val resp = FocusClient.start(store, minutes.toInt())
                 val body = resp.body()
                 if (resp.isSuccessful && body != null) {
                     store.updateFocus(body,allowStart=true)

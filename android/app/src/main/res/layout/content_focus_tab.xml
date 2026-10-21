@@ -2,18 +2,23 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:padding="12dp"
+    android:clipToPadding="false">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="@drawable/bg_panel"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:padding="20dp">
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/tab_keep_me_out"
+            android:textColor="@color/text_primary_light"
             android:textAppearance="?attr/textAppearanceHeadline5"
             android:textStyle="bold" />
 
@@ -22,14 +27,17 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="@string/focus_subtitle"
+            android:textColor="@color/text_secondary_light"
             android:textAppearance="?attr/textAppearanceBody2" />
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
+            app:cardBackgroundColor="@color/background_light"
             app:cardCornerRadius="16dp"
             app:cardElevation="0dp"
+            app:strokeColor="@color/card_stroke_light"
             app:strokeWidth="1dp">
 
             <TextView
@@ -37,8 +45,45 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:padding="16dp"
+                android:textColor="@color/text_primary_light"
                 android:textAppearance="?attr/textAppearanceSubtitle1" />
         </com.google.android.material.card.MaterialCardView>
+
+        <LinearLayout
+            android:id="@+id/publicFocusAccountPanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/publicFocusAccountMessage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/public_focus_setup_message"
+                android:textColor="@color/text_primary_light" />
+
+            <Button
+                android:id="@+id/publicFocusEnrollButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/public_focus_setup_title" />
+
+            <Button
+                android:id="@+id/publicFocusRecoverButton"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/public_focus_recover" />
+
+            <Button
+                android:id="@+id/publicFocusDeleteButton"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/public_focus_delete" />
+        </LinearLayout>
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/focusSetupCard"
@@ -46,6 +91,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:visibility="gone"
+            app:cardBackgroundColor="@color/surface_card_light"
             app:cardCornerRadius="16dp"
             app:cardElevation="0dp"
             app:strokeColor="?attr/colorError"
@@ -61,6 +107,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="@string/focus_setup_needed"
+                    android:textColor="@color/text_primary_light"
                     android:textAppearance="?attr/textAppearanceBody2" />
 
                 <Button
@@ -78,6 +125,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:text="@string/focus_presets_label"
+            android:textColor="@color/text_primary_light"
             android:textAppearance="?attr/textAppearanceSubtitle2" />
 
         <com.google.android.material.chip.ChipGroup
@@ -93,6 +141,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
             android:text="@string/focus_custom_label"
+            android:textColor="@color/text_primary_light"
             android:textAppearance="?attr/textAppearanceSubtitle2" />
 
         <EditText
@@ -100,6 +149,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="@string/focus_custom_hint"
+            android:textColor="@color/text_primary_light"
+            android:textColorHint="@color/text_secondary_light"
             android:importantForAutofill="no"
             android:inputType="number"
             android:maxLength="6" />
@@ -148,6 +199,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:text="@string/focus_footnote"
+            android:textColor="@color/text_secondary_light"
             android:textAppearance="?attr/textAppearanceCaption" />
 
     </LinearLayout>

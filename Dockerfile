@@ -5,7 +5,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY gate.py work.py focus.py gemini_verify.py server_auth.py server_transport.py .
+COPY gate.py work.py focus.py public_focus.py gemini_verify.py server_auth.py server_transport.py .
 
 # SQLite lives here. Mount a PERSISTENT VOLUME at this path.
 # Without one, every redeploy wipes today's counter and hands you a free reset;

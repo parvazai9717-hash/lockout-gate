@@ -1,5 +1,15 @@
 # Version 0.3 preview validation
 
+## Public focus setup and photo readability - 21 October 2026
+
+Version 0.3.2/code 5 adds an opaque focus panel with explicit text colors and compact tab labels, preserving the chosen wallpaper around the content. Public accounts now enroll with separate device/recovery credentials and use their own server records; personal debug still uses its existing protocol and settings guards. See PUBLIC_FOCUS.md for the protocol, data handling, deployment safeguards and owner test.
+
+- 82 personal-debug and 82 public-preview JVM/Robolectric tests pass with no failed/skipped cases. The new cases exercise API request serialization without network access, preservation of wallpaper/selections/pause and break data during setup/deletion, active-account switch/deletion refusal, and credential recovery preserving a cached deadline on API 28/36. Existing timing, personal matcher and pause-dialog tests remain green.
+- 58 Python server tests pass on disposable databases. Eleven new public cases cover credential-domain separation, other-account isolation, no-shortening, recovery-key-only early exit, persistent recovery cooldown, exact-deadline recovery and old-token invalidation, scoped deletion, account/rate capacity limits, body/header limits and restart/snapshot preservation. No real phone session is used by these tests.
+- Debug/public-preview APKs, compiled debug instrumentation APK and optimized unsigned release AAB build successfully. Lint has zero errors and 172 debug/163 public-preview warnings. The API contract test caught the dynamic URL parameter ordering during review; the final tested contract uses a POST body for public state identifiers rather than logging them in query strings.
+- All generated guard flags and compiled APK Accessibility metadata remain correct. Public APK/release bundle contain neither the personal device key nor fixed identity. Public APK signing verifies with the existing debug identity; all original personal-preservation APK/source hashes still match. Text encoding passes for 133 checked files before this documentation-only update.
+- Live deployment/preservation evidence and the synchronized Studio commit are recorded separately in the recovery checkpoint. Phone installation, actual screen contrast, normal signed upgrade, calls/WhatsApp/offline enforcement and the complete public setup/restore flow still require the owner's device acceptance. Device instrumentation was compiled, not run on the owner's installation. No remote CI result or Google Play approval is inferred from local checks.
+
 ## Recovered public candidate - 21 October 2026
 
 Recovered and reviewed the unfinished public-preview changes after the chat application was reinstalled. The candidate remains version 0.3.1/code 4. See PUBLIC_PREVIEW.md for the variant split and owner testing steps.

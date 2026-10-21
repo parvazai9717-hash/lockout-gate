@@ -21,7 +21,7 @@ def client(monkeypatch):
     monkeypatch.setenv("LOCKOUT_DB", os.path.join(tmp, "gate.db"))
     monkeypatch.setenv("LOCKOUT_DEVICE_KEY", "dev-key-for-tests")
     monkeypatch.setenv("LOCKOUT_ADMIN_KEY", "admin-key-for-tests")
-    for m in ("focus", "work", "gate"):
+    for m in ("public_focus", "focus", "work", "gate"):
         sys.modules.pop(m, None)
     gate = importlib.import_module("gate")
     with TestClient(gate.app) as c:

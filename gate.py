@@ -25,6 +25,7 @@ from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
 import focus
+import public_focus
 import work
 from server_auth import require_admin, require_key
 from server_transport import RequestGuard
@@ -41,6 +42,7 @@ app = FastAPI(title="Lockout Gate", docs_url=None, redoc_url=None)
 app.add_middleware(RequestGuard, device_key=lambda: DEVICE_KEY)
 app.include_router(work.router)
 app.include_router(focus.router)
+app.include_router(public_focus.router)
 
 # ----------------------------------------------------------------- persistence
 
@@ -66,10 +68,12 @@ def init_db() -> None:
     os.makedirs(os.path.dirname(DB_PATH) or ".", exist_ok=True)
     backup_before_focus()
     backup_before_security()
+    backup_once(".before-public-focus-v1.bak", "Pre-public-focus")
     with closing(db()) as conn, conn:
         conn.executescript(SCHEMA)
     work.init_schema()
     focus.init_schema()
+    public_focus.init_schema()
 
 
 def backup_before_focus() -> None:

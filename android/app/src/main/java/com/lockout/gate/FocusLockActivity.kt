@@ -94,7 +94,7 @@ class FocusLockActivity : BaseActivity() {
     private fun syncWithServer() {
         lifecycleScope.launch {
             try {
-                val resp = FocusClient.api.focusState(Config.DEVICE_KEY, store.focusDeviceId)
+                val resp = FocusClient.state(store)
                 val body = resp.body()
                 if (resp.isSuccessful && body != null) {
                     store.updateFocus(body)
@@ -149,9 +149,7 @@ class FocusLockActivity : BaseActivity() {
         if (adminKey.isEmpty()) return
         lifecycleScope.launch {
             try {
-                val resp = FocusClient.api.endFocus(
-                    Config.DEVICE_KEY, adminKey, FocusEndRequest(store.focusDeviceId),
-                )
+                val resp = FocusClient.end(store, adminKey)
                 val body = resp.body()
                 when {
                     resp.isSuccessful && body != null -> {

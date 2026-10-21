@@ -7,6 +7,10 @@ from server_auth import require_key
 JSON_LIMIT = 64 * 1024
 UPLOAD_LIMIT = 21 * 1024 * 1024  # 20 MiB photo plus multipart envelope
 ADMIN_ROUTES = {"/v1/status", "/v1/override"}
+PUBLIC_ROUTES = {
+    "/v1/public/enroll", "/v1/public/recover", "/v1/public/focus/state",
+    "/v1/public/focus/start", "/v1/public/focus/end", "/v1/public/account/delete",
+}
 
 
 class RequestGuard:
@@ -27,7 +31,7 @@ class RequestGuard:
                     if len(value) > 1024:
                         raise HTTPException(431, "header too large")
                 headers[name] = value
-            if path.startswith("/v1/") and path not in ADMIN_ROUTES:
+            if path.startswith("/v1/") and path not in ADMIN_ROUTES | PUBLIC_ROUTES:
                 require_key(headers.get(b"x-auth", b"").decode("latin-1"), self.device_key(), "device key")
             if headers.get(b"content-encoding", b"identity").lower() != b"identity":
                 raise HTTPException(415, "compressed request bodies are not supported")
