@@ -25,6 +25,7 @@ android {
         targetSdk = 36
         versionCode = 4
         versionName = "0.3.1"
+        buildConfigField("boolean", "PERSONAL_SETTINGS_GUARD", "false")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "SERVER_BASE_URL", "\"$serverBaseUrl\"")
@@ -34,14 +35,29 @@ android {
 
     buildTypes {
         debug {
+            buildConfigField("boolean", "PERSONAL_SETTINGS_GUARD", "true")
             applicationIdSuffix = ".preview"
             versionNameSuffix = "-preview"
             resValue("string", "app_name", "Lockout Gate Preview")
         }
         release {
+            // Never package the owner's personal server credentials in public artifacts.
+            buildConfigField("String", "DEVICE_KEY", "\"\"")
+            buildConfigField("String", "FOCUS_DEVICE_ID", "\"\"")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+        create("publicPreview") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".publicpreview"
+            versionNameSuffix = "-public-preview"
+            isDebuggable = true
+            isMinifyEnabled = false
+            isShrinkResources = false
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            resValue("string", "app_name", "Lockout Gate Public Test")
         }
     }
 

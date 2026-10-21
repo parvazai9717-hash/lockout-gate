@@ -265,6 +265,13 @@ class MainActivity : BaseActivity() {
 
     private fun toggleEmergency() {
         if (!store.enabled) { store.setProtection(true); renderStatus(); return }
+        if (!BuildConfig.PERSONAL_SETTINGS_GUARD) {
+            PauseConfirmation.show(this, store.pausesRemainingThisMonth) {
+                if (!store.setProtection(false)) toast(getString(R.string.pause_exhausted))
+                renderStatus()
+            }
+            return
+        }
         AlertDialog.Builder(this)
             .setTitle(R.string.emergency_confirm_title)
             .setMessage(getString(R.string.emergency_confirm_message,store.pausesRemainingThisMonth))

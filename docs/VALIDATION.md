@@ -1,5 +1,16 @@
 # Version 0.3 preview validation
 
+## Recovered public candidate - 21 October 2026
+
+Recovered and reviewed the unfinished public-preview changes after the chat application was reinstalled. The candidate remains version 0.3.1/code 4. See PUBLIC_PREVIEW.md for the variant split and owner testing steps.
+
+- Fresh local tests: 75 personal-debug and 75 public-preview JVM/Robolectric tests pass, with no failures or skipped cases. These include the ten-second explicit pause confirmation, cancellation/activity departure, duplicate confirmation and variant isolation, plus the existing timing and personal-page matcher cases. API 28/36 timer-state simulations remain included.
+- Lint: zero errors; 168 debug warnings and 159 public-preview warnings remain. Debug APK, public-preview APK, debug instrumentation APK and optimized unsigned release AAB build successfully. The checked CI workflow includes both variants; this recovery does not claim a new remote CI run.
+- Built APKs have distinct identities: personal `com.lockout.gate.preview` and public `com.lockout.gate.publicpreview`. Compiled Accessibility metadata permits screen retrieval only in personal debug. All three generated configurations have the intended explicit personal-guard flag; public-preview and release configurations contain no personal device key or fixed device identity. Neither private value occurs in the public APK or release bundle. Public APK signing verifies with the preserved debug certificate.
+- Preserved installed APK, personal workspace APK and source ZIP all still match the original 20 October recovery-package SHA-256 hashes. Existing personal settings/removal behavior, pause behavior, habits, wallpapers and usage accounting are preserved by the variant separation.
+- The first fresh test attempt encountered the already documented Windows Robolectric path-space issue. The complete successful invocation uses the existing build_android.ps1 helper with `--offline -ProbolectricMavenRepo=C:/Users/DOCTOR~1/.m2/repository testDebugUnitTest testPublicPreviewUnitTest lintDebug lintPublicPreview assembleDebug assemblePublicPreview bundleRelease assembleDebugAndroidTest`.
+- No phone installation, data clearing, permission changes, device instrumentation execution or live-server changes occurred during recovery. Device tests are compiled only. Public Keep Me Out provisioning/recovery remains unfinished and must show the setup-required message. Real-device acceptance and public-launch requirements remain outstanding.
+
 ## 0.3.1 timer and security candidate - 20 October 2026
 
 - Version code 4, version name 0.3.1. The user's tested personal Accessibility/removal guards remain. No phone installation, permission change, uninstall or Studio UI action is performed by the agent.

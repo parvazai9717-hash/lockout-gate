@@ -2,6 +2,8 @@
 
 Current testing candidate: **0.3.1 (version code 4)**. Fixes selected-app time lost during internal activity transitions, replays delayed usage events and adds optional on-device timer diagnostics. See [the short timer test](docs/TIMER_TEST.md) and [security review](docs/SECURITY_REVIEW.md). The owner presses Android Studio Run; do not uninstall or clear the existing preview to update it.
 
+The owner has now approved a separate public candidate: choose **publicPreview** in Android Studio Build Variants to run **Lockout Gate Public Test**, package `com.lockout.gate.publicpreview`. It cannot replace the personal Preview. It adds a ten-second in-app pause confirmation while leaving Android controls accessible. The personal **debug** variant retains its original guards and pause behavior. Public variants omit the owner's private device key; Keep Me Out's public setup is still unfinished. Read [public candidate details](docs/PUBLIC_PREVIEW.md) before testing or distribution.
+
 The canonical project is this repository root, branch **main**. Open **android/** in Android Studio. Do not open the nested lockout-gate folder. Historical branches are retained as archive tags when consolidated; ongoing work belongs on main or a short-lived reviewed change branch.
 
 ## Product rules
@@ -19,7 +21,7 @@ Coding agents prepare and verify the code, update this existing Studio project, 
 
 Ignored android/local.properties holds sdk.dir, LOCKOUT_SERVER_BASE_URL (HTTPS) and LOCKOUT_DEVICE_KEY for the personal preview. No public fallback key is permitted. An optional LOCKOUT_FOCUS_DEVICE_ID is for controlled migrations only; normally each install creates its own identifier and secret. Never put LOCKOUT_ADMIN_KEY on the phone.
 
-Build checks: `cd android` then `./gradlew testDebugUnitTest lintDebug assembleDebug bundleRelease assembleDebugAndroidTest`. Server checks: install requirements.txt and requirements-dev.txt in an isolated Python environment, then `python -m pytest tests -q`.
+Build checks: `cd android` then `./gradlew testDebugUnitTest testPublicPreviewUnitTest lintDebug lintPublicPreview assembleDebug assemblePublicPreview bundleRelease assembleDebugAndroidTest`. On this Windows machine, supply the documented `-ProbolectricMavenRepo=C:/Users/DOCTOR~1/.m2/repository` workaround when running Robolectric tests; see docs/VALIDATION.md. Server checks: install requirements.txt and requirements-dev.txt in an isolated Python environment, then `python -m pytest tests -q`.
 
 From the repository root, run `python tools/check_text_encoding.py` to detect corrupted text before building. Habit month navigation uses vector arrows with readable labels for screen readers.
 

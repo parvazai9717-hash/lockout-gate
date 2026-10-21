@@ -11,7 +11,10 @@ import org.junit.Test
 abstract class SessionStoreTimingCases {
     protected abstract val context: Context
     private val prefs get()=context.getSharedPreferences("lockout_session",Context.MODE_PRIVATE)
-    @Before fun resetTiming() { check(context.packageName.endsWith(".preview")); prefs.edit().clear().commit() }
+    @Before fun resetTiming() {
+        check(context.packageName in setOf("com.lockout.gate.preview", "com.lockout.gate.publicpreview"))
+        prefs.edit().clear().commit()
+    }
     private fun setup(): Pair<SessionStore,SessionStore.MeasurementWindow> {
         val store=SessionStore(context)
         assertTrue(store.startBreakLocally())

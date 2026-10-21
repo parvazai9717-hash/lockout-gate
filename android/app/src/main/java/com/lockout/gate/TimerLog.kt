@@ -6,7 +6,7 @@ import org.json.JSONArray
 /** Opt-in, bounded, local counters only. No app names, screen text or keys. */
 object TimerLog {
     private fun prefs(context: Context) = context.getSharedPreferences("timer_diagnostics", Context.MODE_PRIVATE)
-    fun enabled(context: Context) = prefs(context).getBoolean("enabled", BuildConfig.DEBUG)
+    fun enabled(context: Context) = prefs(context).getBoolean("enabled", BuildConfig.PERSONAL_SETTINGS_GUARD)
     private fun samples(context: Context) = runCatching { JSONArray(prefs(context).getString("samples", "[]")) }.getOrElse { JSONArray() }
     fun setEnabled(context: Context, enabled: Boolean) { prefs(context).edit().putBoolean("enabled", enabled).apply() }
     @Synchronized fun clear(context: Context) { prefs(context).edit().remove("samples").apply() }

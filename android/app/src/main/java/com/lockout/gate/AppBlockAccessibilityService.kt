@@ -99,7 +99,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
                 return // Do not repeatedly count the blocker itself as another attempt.
             }
 
-            if (BuildConfig.DEBUG && store.enabled && !store.isFirstRun &&
+            if (BuildConfig.PERSONAL_SETTINGS_GUARD && store.enabled && !store.isFirstRun &&
                 PersonalAccessibilityGuard.shouldReturnHome(event, getString(R.string.app_name),
                     getString(R.string.accessibility_service_description)) { rootInActiveWindow }) {
                 val now = SystemClock.elapsedRealtime()

@@ -10,7 +10,7 @@ object PersonalAccessibilityGuard {
                          readRoot: () -> AccessibilityNodeInfo?): Boolean {
         // Both code and service metadata disable content inspection in release.
         val pkg = event.packageName?.toString() ?: return false
-        if (!BuildConfig.DEBUG || !OwnRemovalPage.canInspect(pkg)) return false
+        if (!BuildConfig.PERSONAL_SETTINGS_GUARD || !OwnRemovalPage.canInspect(pkg)) return false
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
             event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) return false
         val root = readRoot() ?: return false

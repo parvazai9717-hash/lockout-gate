@@ -103,6 +103,8 @@
     <string name="habits_label_monthly">MONTHLY PROGRESS</string>
     <string name="habits_today_progress">%1$d of %2$d done (%3$d%%)</string>
     <string name="personal_settings_guard_notice"></string>
+    <string name="public_pause_wait">Wait %1$d seconds</string>
+    <string name="public_pause_message">Take a moment to remember your focus goal. You have %1$d protection pauses left this month. A pause allows selected apps until you resume protection. Resuming does not return this allowance. Keep Me Out cannot be paused this way.\n\nCancel keeps protection on and uses no pause. Android permission and uninstall controls remain available.</string>
     <string name="habits_month_progress">%1$d%% complete (%2$d of %3$d checks)</string>
     <string name="habits_row_month_pct">%1$d%% this month</string>
     <string name="habits_add_hint">New habit, e.g. Read 20 pages</string>
