@@ -23,6 +23,7 @@ def state(c, headers=AUTH, device_id=ID):
 
 
 def test_setup_and_server_clock_without_personal_key(client, monkeypatch):
+    assert client.get("/healthz").json()["public_focus_accounts"] is True
     assert enroll(client).status_code == 200
     response = start(client, 1)
     assert response.status_code == 200

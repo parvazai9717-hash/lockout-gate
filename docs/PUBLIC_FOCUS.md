@@ -1,5 +1,9 @@
 # Public Keep Me Out accounts - 0.3.2
 
+0.3.3 follow-up: setup and recovery first check the service's `public_focus_accounts` health capability. If the backend is still old, the app explains that a service update is needed before generating another recovery key. A read-only live check on 21 October confirmed the service was reachable but this capability was absent; remote publication/deployment is still pending explicit user approval after automatic approval review rejected the main push.
+
+At the owner's request, setup now includes an explicit **Copy key** button. No recovery key is retained in app storage. Only tapping Copy puts it in the system clipboard, marked sensitive, with best-effort cleanup of that specific copy after one minute. Cleanup never erases a different clipboard item; background/OS restrictions can prevent cleanup, so the user should paste it to a safe place outside the phone and replace/clear the clipboard afterward. The in-app recovery action is labeled **Use a saved recovery key** and explains that it is for an account whose setup previously completed. Duplicate setup instructions are removed.
+
 Public preview and release create an anonymous focus account per installation. No email is requested. The personal debug variant continues using the original device key, device secret and shared admin recovery endpoints. Public builds still contain no personal device key or fixed identity.
 
 ## Owner test

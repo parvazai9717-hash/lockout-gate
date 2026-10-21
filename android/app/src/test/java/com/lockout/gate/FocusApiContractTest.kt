@@ -20,11 +20,13 @@ class FocusApiContractTest {
             val request = chain.request()
             requests.add(request)
             Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("OK")
-                .body("{\"active\":false,\"started_at\":0,\"ends_at\":0,\"remaining_s\":0,\"server_now\":100}"
+                .body("{\"active\":false,\"started_at\":0,\"ends_at\":0,\"remaining_s\":0,\"server_now\":100,\"public_focus_accounts\":true}"
                     .toResponseBody("application/json".toMediaType())).build()
         }.build()
         val api = Retrofit.Builder().baseUrl("https://focus.example.invalid/").client(client)
             .addConverterFactory(GsonConverterFactory.create()).validateEagerly(true).build().create(FocusApi::class.java)
+        assertTrue(api.serviceInfo().body()!!.public_focus_accounts)
+        assertEquals("/healthz", requests.last().url.encodedPath)
         for (prefix in listOf("/v1/focus", "/v1/public/focus")) {
             if (prefix == "/v1/public/focus") {
                 assertTrue(api.publicState("test-device-auth", FocusEndRequest("test-device")).isSuccessful)

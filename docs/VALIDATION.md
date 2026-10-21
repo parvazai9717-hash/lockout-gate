@@ -1,5 +1,13 @@
 # Version 0.3 preview validation
 
+## Setup explanation and explicit recovery-key copying - 0.3.3
+
+21 October: a read-only HTTPS health check confirmed that the live service is reachable but does not advertise public focus account support. The local server update remains pending publishing/deployment approval, explaining the phone's setup failure despite Wi-Fi.
+
+The app now checks the health capability before showing a setup key or recovery input, explains an outdated service separately from a connection failure, provides an explicit Copy key action, removes duplicate setup instructions, and labels recovery as using a previously saved key. Copy uses a sensitive system clip with best-effort one-minute cleanup of its own copy only. No recovery key is retained in app storage.
+
+85 tests pass in each Android variant, with no failures/skips. New clipboard cases exercise sensitivity metadata, expiry, preservation of unrelated clipboard contents and a fresh expiry when copying the same key again. The API contract test checks the public health capability. All 58 server tests pass with the added capability assertion. Both APKs and the optimized release AAB build; lint has zero errors and 172 debug/163 public-preview warnings. No phone installation or live backend modification was performed. The owner still needs to accept the updated UI on the phone after the pending server update.
+
 ## Public focus setup and photo readability - 21 October 2026
 
 Version 0.3.2/code 5 adds an opaque focus panel with explicit text colors and compact tab labels, preserving the chosen wallpaper around the content. Public accounts now enroll with separate device/recovery credentials and use their own server records; personal debug still uses its existing protocol and settings guards. See PUBLIC_FOCUS.md for the protocol, data handling, deployment safeguards and owner test.

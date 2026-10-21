@@ -31,6 +31,28 @@ class PublicFocusSetup(
 
     fun enroll() {
         if (busy || store.focusActive() || !FocusClient.connectionAvailable) return
+        checkService { showEnrollmentKey() }
+    }
+
+    private fun checkService(ready: () -> Unit) {
+        updateBusy(true)
+        activity.lifecycleScope.launch {
+            try {
+                val response = FocusClient.api.serviceInfo()
+                if (response.isSuccessful && response.body()?.public_focus_accounts == true) ready()
+                else AlertDialog.Builder(activity).setTitle(R.string.public_focus_service_title)
+                    .setMessage(if (response.isSuccessful || response.code() == 404)
+                        R.string.public_focus_service_update else R.string.public_focus_service_unavailable)
+                    .setPositiveButton(android.R.string.ok, null).show()
+            } catch (e: CancellationException) { throw e
+            } catch (e: java.io.IOException) { toast(R.string.public_focus_connection_failed)
+            } catch (e: Exception) { toast(R.string.public_focus_service_unavailable)
+            } finally { updateBusy(false) }
+        }
+    }
+
+    private fun showEnrollmentKey() {
+        if (store.focusActive() || activity.isFinishing || activity.isDestroyed) return
         val id = store.focusDeviceId
         val key = "LG1.$id.${UUID.randomUUID().toString().replace("-", "")}"
         val code = TextView(activity).apply {
@@ -47,10 +69,15 @@ class PublicFocusSetup(
             .setView(code)
             .setPositiveButton(R.string.public_focus_key_saved, null)
             .setNegativeButton(android.R.string.cancel, null)
+            .setNeutralButton(R.string.public_focus_copy_key, null)
             .create()
         dialog.setOnDismissListener { code.text = "" }
         dialog.show()
         secure(dialog)
+        dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+            RecoveryClipboard.copy(activity, key)
+            toast(R.string.public_focus_key_copied)
+        }
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             if (busy) return@setOnClickListener
             updateBusy(true)
@@ -67,9 +94,14 @@ class PublicFocusSetup(
                         toast(R.string.public_focus_ready)
                         changed()
                     } else {
-                        toast(if (response.code() == 429) R.string.public_focus_rate_limit else R.string.public_focus_setup_failed)
+                        toast(when (response.code()) {
+                            429 -> R.string.public_focus_rate_limit
+                            404 -> R.string.public_focus_service_update
+                            else -> R.string.public_focus_setup_failed
+                        })
                     }
                 } catch (e: CancellationException) { throw e
+                } catch (e: java.io.IOException) { toast(R.string.public_focus_connection_failed)
                 } catch (e: Exception) { toast(R.string.public_focus_setup_failed)
                 } finally {
                     updateBusy(false)
@@ -85,6 +117,11 @@ class PublicFocusSetup(
 
     fun recover() {
         if (busy || store.focusActive() || !FocusClient.connectionAvailable) return
+        checkService { showRecovery() }
+    }
+
+    private fun showRecovery() {
+        if (store.focusActive() || activity.isFinishing || activity.isDestroyed) return
         val input = EditText(activity).apply {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS

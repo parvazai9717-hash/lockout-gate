@@ -75,7 +75,7 @@
                 style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/public_focus_recover" />
+                android:text="@string/public_focus_use_saved_key" />
 
             <Button
                 android:id="@+id/publicFocusDeleteButton"

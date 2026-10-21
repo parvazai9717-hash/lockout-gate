@@ -1,6 +1,6 @@
 # Lockout Gate
 
-Current testing candidate: **0.3.2 (version code 5)**. Adds readable panels over photo wallpapers and separate public Keep Me Out enrollment, recovery and deletion. Existing usage-accounting fixes remain. See [the short timer test](docs/TIMER_TEST.md) and [security review](docs/SECURITY_REVIEW.md). The owner presses Android Studio Run; do not uninstall or clear the existing preview to update it.
+Current testing candidate: **0.3.3 (version code 6)**. Adds an explicit Copy key button, checks service readiness before showing a setup key, and clarifies recovery without repeated instructions. Readable photo panels and separate public Keep Me Out accounts remain. Existing usage-accounting fixes remain. See [the short timer test](docs/TIMER_TEST.md) and [security review](docs/SECURITY_REVIEW.md). The owner presses Android Studio Run; do not uninstall or clear the existing preview to update it.
 
 Choose **publicPreview** in Android Studio Build Variants to run **Lockout Gate Public Test**, package `com.lockout.gate.publicpreview`. It cannot replace the personal Preview. It adds a ten-second in-app pause confirmation while leaving Android controls accessible. The personal **debug** variant retains its original guards and pause behavior. Public variants omit the owner's private device key and enroll an independent focus account using the public server routes. Read [public candidate details](docs/PUBLIC_PREVIEW.md) before testing or distribution.
 

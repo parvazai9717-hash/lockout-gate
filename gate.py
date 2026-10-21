@@ -245,4 +245,4 @@ def status(device_id: str, x_admin: str = Header(default="")) -> dict:
 
 @app.get("/healthz")
 def healthz() -> dict:
-    return {"ok": True, "day": today()}
+    return {"ok": True, "day": today(), "public_focus_accounts": True}

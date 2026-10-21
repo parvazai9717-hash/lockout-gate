@@ -106,8 +106,10 @@ class FocusTabController(
         publicPanel.findViewById<Button>(R.id.publicFocusEnrollButton).isEnabled = !accountSetup.busy
         publicPanel.findViewById<Button>(R.id.publicFocusRecoverButton).isEnabled = !store.focusActive() && !accountSetup.busy
         publicPanel.findViewById<Button>(R.id.publicFocusDeleteButton).isEnabled = !store.focusActive() && !accountSetup.busy
-        publicPanel.findViewById<TextView>(R.id.publicFocusAccountMessage).setText(
-            if (store.publicFocusEnrolled) R.string.public_focus_ready_message else R.string.public_focus_setup_message)
+        publicPanel.findViewById<TextView>(R.id.publicFocusAccountMessage).apply {
+            visibility = if (store.publicFocusEnrolled) View.VISIBLE else View.GONE
+            setText(R.string.public_focus_ready_message)
+        }
         setupCard.visibility = if (serviceOn) View.GONE else View.VISIBLE
         startButton.isEnabled = serviceOn && FocusClient.configured && !store.focusActive() && !accountSetup.busy && !starting
 

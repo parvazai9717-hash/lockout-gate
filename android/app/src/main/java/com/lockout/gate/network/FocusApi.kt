@@ -8,6 +8,8 @@ data class FocusEndRequest(val device_id: String)
 @androidx.annotation.Keep
 data class PublicAccountRequest(val device_id: String, val device_secret: String, val recovery_key: String)
 @androidx.annotation.Keep
+data class FocusServiceInfo(val public_focus_accounts: Boolean = false)
+@androidx.annotation.Keep
 data class FocusState(
     val active: Boolean,
     val started_at: Long,
@@ -17,6 +19,8 @@ data class FocusState(
 )
 
 interface FocusApi {
+    @GET("/healthz")
+    suspend fun serviceInfo(): Response<FocusServiceInfo>
     @GET
     suspend fun focusState(
         @Url path: String,
