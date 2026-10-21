@@ -11,6 +11,8 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import com.lockout.gate.network.FocusClient
@@ -43,6 +45,11 @@ class FocusTabController(
     private val accountSetup = PublicFocusSetup(activity, store) { render() }
 
     init {
+        // The singleTask main screen survives the lock screen. Redraw its cached
+        // state on return, including after an admin exit or natural expiry.
+        activity.lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onResume(owner: LifecycleOwner) { render() }
+        })
         root.findViewById<Button>(R.id.publicFocusEnrollButton).setOnClickListener { accountSetup.enroll() }
         root.findViewById<Button>(R.id.publicFocusRecoverButton).setOnClickListener { accountSetup.recover() }
         root.findViewById<Button>(R.id.publicFocusDeleteButton).setOnClickListener { accountSetup.delete() }
@@ -124,6 +131,7 @@ class FocusTabController(
         } else {
             activity.getString(R.string.focus_status_idle)
         }
+        statusText.append("\n\n" + store.focusEarlyExitMessage(activity))
     }
 
     /** The lock is only real if the accessibility service is actually running. */

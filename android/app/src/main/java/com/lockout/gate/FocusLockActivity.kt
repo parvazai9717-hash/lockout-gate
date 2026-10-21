@@ -80,6 +80,7 @@ class FocusLockActivity : BaseActivity() {
             R.string.focus_lock_until,
             DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(store.focusEndsAtWall())),
         )
+        renderEarlyAllowance()
         handler.removeCallbacks(tick)
         handler.post(tick)
         syncWithServer()
@@ -98,6 +99,7 @@ class FocusLockActivity : BaseActivity() {
                 val body = resp.body()
                 if (resp.isSuccessful && body != null) {
                     store.updateFocus(body)
+                    renderEarlyAllowance()
                     if (!store.focusActive()) finishLock()
                 }
             } catch (e: Exception) {
@@ -128,7 +130,7 @@ class FocusLockActivity : BaseActivity() {
         }
         val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.focus_end_title)
-            .setMessage(R.string.focus_end_message)
+            .setMessage(getString(R.string.focus_end_message) + "\n\n" + store.focusEarlyExitMessage(this))
             .setView(input)
             .setPositiveButton(R.string.focus_end_confirm) { _, _ -> endEarly(input.text.toString().trim()) }
             .setNegativeButton(android.R.string.cancel, null)
@@ -158,6 +160,7 @@ class FocusLockActivity : BaseActivity() {
                     }
                     resp.code() == 429 -> toast(R.string.focus_end_throttled)
                     resp.code() == 401 -> toast(R.string.focus_end_wrong_key)
+                    resp.code() == 409 -> { toast(R.string.focus_end_monthly_limit); syncWithServer() }
                     else -> toast(R.string.focus_end_server_error)
                 }
             } catch (e: Exception) {
@@ -167,6 +170,10 @@ class FocusLockActivity : BaseActivity() {
     }
 
     private fun toast(resId: Int) = Toast.makeText(this, resId, Toast.LENGTH_LONG).show()
+
+    private fun renderEarlyAllowance() {
+        findViewById<TextView>(R.id.focusEarlyAllowance).text = store.focusEarlyExitMessage(this)
+    }
 
     private fun finishLock() {
         handler.removeCallbacks(tick)

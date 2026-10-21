@@ -111,13 +111,13 @@ def enroll(body: Enroll, request: Request):
             except sqlite3.IntegrityError:
                 raise HTTPException(409, "device credentials already registered")
         row = c.execute("SELECT * FROM public_focus_account WHERE device_id=?", (body.device_id,)).fetchone()
-        return focus._state(row, int(time.time()))
+        return focus.state_for(c, row, int(time.time()), "public", body.device_id)
 
 
 @router.post("/focus/state", response_model=focus.FocusState)
 def state(body: focus.FocusEndRequest, x_auth: str = Header(default="")):
     with closing(focus.db()) as c:
-        return focus._state(account(c, body.device_id, x_auth), int(time.time()))
+        return focus.state_for(c, account(c, body.device_id, x_auth), int(time.time()), "public", body.device_id)
 
 
 @router.post("/focus/start", response_model=focus.FocusState)
@@ -133,7 +133,7 @@ def start(body: focus.FocusStartRequest, x_auth: str = Header(default="")):
         end = max(row["ends_at"], now + body.minutes * 60) if active else now + body.minutes * 60
         c.execute("UPDATE public_focus_account SET started_at=?,ends_at=? WHERE device_id=?",
                   (started, end, body.device_id))
-        return focus.FocusState(active=True, started_at=started, ends_at=end, remaining_s=end-now, server_now=now)
+        return focus.state_for(c, {"started_at": started, "ends_at": end}, now, "public", body.device_id)
 
 
 @router.post("/focus/end", response_model=focus.FocusState)
@@ -143,10 +143,13 @@ def end(body: focus.FocusEndRequest, x_auth: str = Header(default=""), x_admin: 
         row = account(c, body.device_id, x_auth)
         error = recovery_check(c, row, x_admin)
         if not error:
-            c.execute("UPDATE public_focus_account SET ends_at=? WHERE device_id=?", (int(time.time()), body.device_id))
+            now = int(time.time())
+            focus.consume_early_exit(c, "public", body.device_id, row, now)
+            c.execute("UPDATE public_focus_account SET ends_at=? WHERE device_id=? AND ends_at>?", (now, body.device_id, now))
+            result = focus.state_for(c, None, now, "public", body.device_id)
     if error:
         raise error
-    return focus._state(None, int(time.time()))
+    return result
 
 
 @router.post("/recover", response_model=focus.FocusState)
@@ -166,7 +169,7 @@ def recover(body: Recover, request: Request):
                           (digest(body.device_secret), body.device_id))
             except sqlite3.IntegrityError:
                 raise HTTPException(409, "device credentials already registered")
-        result = focus._state(row, int(time.time()))
+        result = focus.state_for(c, row, int(time.time()), "public", body.device_id)
     if error:
         raise error
     return result  # Recovery never ends/shortens an active lock.
@@ -180,4 +183,5 @@ def delete(body: focus.FocusEndRequest, x_auth: str = Header(default="")):
         if row["ends_at"] > int(time.time()):
             raise HTTPException(423, "finish the lock or end it with the recovery key first")
         c.execute("DELETE FROM public_focus_account WHERE device_id=?", (body.device_id,))
+        c.execute("DELETE FROM focus_early_exit WHERE scope='public' AND device_id=?", (body.device_id,))
     return {"deleted": True}

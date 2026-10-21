@@ -69,6 +69,7 @@ def init_db() -> None:
     backup_before_focus()
     backup_before_security()
     backup_once(".before-public-focus-v1.bak", "Pre-public-focus")
+    backup_once(".before-early-exits-v1.bak", "Pre-early-exits")
     with closing(db()) as conn, conn:
         conn.executescript(SCHEMA)
     work.init_schema()
@@ -245,4 +246,4 @@ def status(device_id: str, x_admin: str = Header(default="")) -> dict:
 
 @app.get("/healthz")
 def healthz() -> dict:
-    return {"ok": True, "day": today(), "public_focus_accounts": True}
+    return {"ok": True, "day": today(), "public_focus_accounts": True, "monthly_early_exit_limit": focus.EARLY_EXIT_LIMIT}

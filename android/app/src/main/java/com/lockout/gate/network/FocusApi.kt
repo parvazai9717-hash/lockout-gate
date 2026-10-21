@@ -16,6 +16,9 @@ data class FocusState(
     val ends_at: Long,
     val remaining_s: Long,
     val server_now: Long,
+    val early_exits_remaining: Int? = null,
+    val early_exit_resets_at: Long? = null,
+    val early_exit_timezone: String? = null,
 )
 
 interface FocusApi {

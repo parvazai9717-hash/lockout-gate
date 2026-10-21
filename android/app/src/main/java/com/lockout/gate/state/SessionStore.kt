@@ -191,6 +191,7 @@ class SessionStore(context: Context) {
         if ((focusActive() && id != focusDeviceId) || id.length !in 16..100 || secret.length !in 32..256) return@synchronized false
         // Recovery keys are deliberately never accepted or persisted here.
         prefs.edit().putString("focus_device_id", id).putString("focus_device_secret", secret)
+            .apply { if (id != focusDeviceId) remove("focus_early_remaining").remove("focus_early_reset") }
             .putBoolean("public_focus_enrolled", true).commit()
     }
     fun clearPublicFocusAccount(): Boolean = synchronized(LOCK) {
@@ -198,6 +199,7 @@ class SessionStore(context: Context) {
         if (focusActive()) return@synchronized false
         prefs.edit().remove("focus_device_id").remove("focus_device_secret")
             .remove("public_focus_enrolled").remove("focus_server_now")
+            .remove("focus_early_remaining").remove("focus_early_reset")
             .remove("focus_admin_cleared_at").commit()
     }
     fun focusRemainingMs(): Long = FocusClock.remaining(
@@ -205,12 +207,27 @@ class SessionStore(context: Context) {
         prefs.getInt("focus_boot_count",-1), bootCount(), System.currentTimeMillis(), SystemClock.elapsedRealtime())
     fun focusActive() = focusRemainingMs() > 0L
     fun focusEndsAtWall() = prefs.getLong("focus_end_wall_ms",0)
+    fun focusEarlyExitMessage(context: Context): String {
+        val reset = prefs.getLong("focus_early_reset", 0)
+        val remaining = prefs.getInt("focus_early_remaining", -1)
+        // An offline cache cannot grant more exits when the calendar changes.
+        // Let the server refresh the allowance rather than guessing on the phone.
+        if (remaining !in 0..2 || reset <= System.currentTimeMillis() / 1000)
+            return context.getString(com.lockout.gate.R.string.focus_early_limit_rule)
+        val date = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT)
+            .format(java.util.Date(reset * 1000))
+        return context.getString(com.lockout.gate.R.string.focus_early_allowance, remaining, date)
+    }
     fun updateFocus(state: FocusState, allowEarlyEnd: Boolean = false, allowStart: Boolean = false) = synchronized(LOCK) {
         val previousNow=prefs.getLong("focus_server_now",0)
         if (state.server_now < previousNow) return@synchronized
         // A delayed poll from the same server second must not undo an admin exit.
         if (state.active && !allowStart && state.server_now <= prefs.getLong("focus_admin_cleared_at",0)) return@synchronized
         if (!state.active && !allowEarlyEnd && state.server_now == previousNow && focusActive()) return@synchronized
+        state.early_exits_remaining?.takeIf { it in 0..2 }?.let { remaining ->
+            prefs.edit().putInt("focus_early_remaining", remaining)
+                .putLong("focus_early_reset", state.early_exit_resets_at ?: 0).commit()
+        }
         if (!state.active || state.remaining_s <= 0) {
             prefs.edit().putLong("focus_end_wall_ms",0).putLong("focus_end_elapsed_ms",0)
                 .apply { if (allowEarlyEnd) putLong("focus_admin_cleared_at",state.server_now) }
