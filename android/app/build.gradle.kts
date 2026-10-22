@@ -23,8 +23,8 @@ android {
         applicationId = "com.lockout.gate"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
-        versionName = "0.3.4"
+        versionCode = 8
+        versionName = "0.3.5"
         buildConfigField("boolean", "PERSONAL_SETTINGS_GUARD", "false")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

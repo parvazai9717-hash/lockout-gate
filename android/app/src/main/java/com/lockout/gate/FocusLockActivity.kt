@@ -21,6 +21,8 @@ import com.lockout.gate.network.FocusClient
 import com.lockout.gate.network.FocusEndRequest
 import com.lockout.gate.state.SessionStore
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import java.text.DateFormat
 import java.util.Date
 
@@ -38,6 +40,9 @@ class FocusLockActivity : BaseActivity() {
     private lateinit var countdownText: TextView
     private lateinit var untilText: TextView
     private val handler = Handler(Looper.getMainLooper())
+    private var syncJob: Job? = null
+    private var ending = false
+    private var finishingLock = false
 
     private val tick = object : Runnable {
         override fun run() {
@@ -93,7 +98,8 @@ class FocusLockActivity : BaseActivity() {
 
     /** Re-reads the end time from the server, which is the only clock that counts. */
     private fun syncWithServer() {
-        lifecycleScope.launch {
+        if (syncJob?.isActive == true || finishingLock) return
+        syncJob = lifecycleScope.launch {
             try {
                 val resp = FocusClient.state(store)
                 val body = resp.body()
@@ -102,6 +108,8 @@ class FocusLockActivity : BaseActivity() {
                     renderEarlyAllowance()
                     if (!store.focusActive()) finishLock()
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 // Offline: keep enforcing the last known end time.
             }
@@ -120,6 +128,7 @@ class FocusLockActivity : BaseActivity() {
     }
 
     private fun promptEndEarly() {
+        if (ending || finishingLock) return
         val input = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
@@ -148,7 +157,9 @@ class FocusLockActivity : BaseActivity() {
     }
 
     private fun endEarly(adminKey: String) {
-        if (adminKey.isEmpty()) return
+        if (adminKey.isEmpty() || ending || finishingLock || !store.focusActive()) return
+        ending = true
+        findViewById<Button>(R.id.focusEndEarlyButton).isEnabled = false
         lifecycleScope.launch {
             try {
                 val resp = FocusClient.end(store, adminKey)
@@ -163,8 +174,13 @@ class FocusLockActivity : BaseActivity() {
                     resp.code() == 409 -> { toast(R.string.focus_end_monthly_limit); syncWithServer() }
                     else -> toast(R.string.focus_end_server_error)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 toast(R.string.focus_end_offline)
+            } finally {
+                ending = false
+                if (!isFinishing && !isDestroyed) findViewById<Button>(R.id.focusEndEarlyButton).isEnabled = true
             }
         }
     }
@@ -176,6 +192,8 @@ class FocusLockActivity : BaseActivity() {
     }
 
     private fun finishLock() {
+        if (finishingLock || isFinishing) return
+        finishingLock = true
         handler.removeCallbacks(tick)
         if (!store.focusActive()) {
             Toast.makeText(this, R.string.focus_finished, Toast.LENGTH_LONG).show()

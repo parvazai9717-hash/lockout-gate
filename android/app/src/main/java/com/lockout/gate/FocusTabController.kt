@@ -19,6 +19,7 @@ import com.lockout.gate.network.FocusClient
 import com.lockout.gate.network.FocusStartRequest
 import com.lockout.gate.state.SessionStore
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import java.text.DateFormat
 import java.util.Date
 
@@ -98,6 +99,8 @@ class FocusTabController(
                     store.updateFocus(body)
                     render()
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 // Offline — show the cached state.
             }
@@ -110,9 +113,10 @@ class FocusTabController(
         publicPanel.visibility = if (FocusClient.publicMode && FocusClient.connectionAvailable) View.VISIBLE else View.GONE
         publicPanel.findViewById<Button>(R.id.publicFocusEnrollButton).visibility = if (store.publicFocusEnrolled) View.GONE else View.VISIBLE
         publicPanel.findViewById<Button>(R.id.publicFocusDeleteButton).visibility = if (store.publicFocusEnrolled) View.VISIBLE else View.GONE
-        publicPanel.findViewById<Button>(R.id.publicFocusEnrollButton).isEnabled = !accountSetup.busy
-        publicPanel.findViewById<Button>(R.id.publicFocusRecoverButton).isEnabled = !store.focusActive() && !accountSetup.busy
-        publicPanel.findViewById<Button>(R.id.publicFocusDeleteButton).isEnabled = !store.focusActive() && !accountSetup.busy
+        val accountActionsEnabled = !store.focusActive() && !accountSetup.busy && !starting
+        publicPanel.findViewById<Button>(R.id.publicFocusEnrollButton).isEnabled = accountActionsEnabled
+        publicPanel.findViewById<Button>(R.id.publicFocusRecoverButton).isEnabled = accountActionsEnabled
+        publicPanel.findViewById<Button>(R.id.publicFocusDeleteButton).isEnabled = accountActionsEnabled
         publicPanel.findViewById<TextView>(R.id.publicFocusAccountMessage).apply {
             visibility = if (store.publicFocusEnrolled) View.VISIBLE else View.GONE
             setText(R.string.public_focus_ready_message)
@@ -181,9 +185,9 @@ class FocusTabController(
     }
 
     private fun start(minutes: Long) {
-        if (starting || accountSetup.busy || !FocusClient.configured) return
+        if (starting || accountSetup.busy || !FocusClient.configured || store.focusActive() || !isBlockingServiceEnabled()) return
         starting = true
-        startButton.isEnabled = false
+        render()
         activity.lifecycleScope.launch {
             try {
                 val resp = FocusClient.start(store, minutes.toInt())
@@ -194,6 +198,8 @@ class FocusTabController(
                 } else {
                     Toast.makeText(activity, R.string.focus_start_failed, Toast.LENGTH_LONG).show()
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 // Starting needs the server: the lock's clock has to be the server's.
                 Toast.makeText(activity, R.string.focus_start_offline, Toast.LENGTH_LONG).show()

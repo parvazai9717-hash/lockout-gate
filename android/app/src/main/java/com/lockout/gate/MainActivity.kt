@@ -29,8 +29,15 @@ import kotlinx.coroutines.launch
  * in AppBlockAccessibilityService.
  */
 class MainActivity : BaseActivity() {
+    private val statusHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val statusRefresh = Runnable {
+        if (::habitController.isInitialized && !isFinishing && !isDestroyed) renderStatus()
+    }
     private val stateListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
-        if (::habitController.isInitialized) runOnUiThread { renderStatus() }
+        // One persisted state change can notify many keys. Coalesce the burst
+        // instead of rebuilding the status and querying permissions per key.
+        statusHandler.removeCallbacks(statusRefresh)
+        statusHandler.post(statusRefresh)
     }
 
     private lateinit var store: SessionStore
@@ -121,6 +128,7 @@ class MainActivity : BaseActivity() {
 
     override fun onPause() {
         getSharedPreferences("lockout_session", MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(stateListener)
+        statusHandler.removeCallbacks(statusRefresh)
         super.onPause()
     }
 

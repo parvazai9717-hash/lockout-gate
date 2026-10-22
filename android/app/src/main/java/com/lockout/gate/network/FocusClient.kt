@@ -43,15 +43,7 @@ object FocusClient {
     }
     val api: FocusApi by lazy {
         check(connectionAvailable) { "Focus server is not configured" }
-        val client = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false)
-            .addInterceptor { chain ->
-                val store=com.lockout.gate.state.SessionStore(com.lockout.gate.LockoutApp.instance)
-                chain.proceed(chain.request().newBuilder().header("X-Device-Secret",store.focusDeviceSecret).build())
-            }
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .build()
+        val client = createHttpClient(publicMode) { store.focusDeviceSecret }
 
         Retrofit.Builder()
             .baseUrl(Config.SERVER_BASE_URL)
@@ -61,4 +53,22 @@ object FocusClient {
             .build()
             .create(FocusApi::class.java)
     }
+
+    internal fun createHttpClient(publicMode: Boolean, deviceSecret: () -> String): OkHttpClient =
+        OkHttpClient.Builder().followRedirects(false).followSslRedirects(false)
+            .addInterceptor { chain ->
+                val request = chain.request()
+                val builder = request.newBuilder().removeHeader("X-Device-Secret")
+                // Only legacy focus routes need this header. Health checks and
+                // public requests must not carry an unrelated installation key.
+                if (!publicMode && request.url.encodedPath.startsWith("/v1/focus/")) {
+                    builder.header("X-Device-Secret", deviceSecret())
+                }
+                chain.proceed(builder.build())
+            }
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .callTimeout(45, TimeUnit.SECONDS)
+            .build()
 }

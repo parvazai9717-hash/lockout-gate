@@ -22,6 +22,8 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Header, HTTPException
+from fastapi.exceptions import RequestValidationError
+from starlette.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 import focus
@@ -43,6 +45,13 @@ app.add_middleware(RequestGuard, device_key=lambda: DEVICE_KEY)
 app.include_router(work.router)
 app.include_router(focus.router)
 app.include_router(public_focus.router)
+
+
+@app.exception_handler(RequestValidationError)
+async def invalid_request(_request, _error):
+    # Framework validation details can include the entire enrollment body,
+    # including recovery keys. Never reflect submitted values into diagnostics.
+    return JSONResponse({"detail": "invalid request"}, status_code=422)
 
 # ----------------------------------------------------------------- persistence
 

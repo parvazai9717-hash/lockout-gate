@@ -19,4 +19,6 @@ EXPOSE 8080
 
 # 0.0.0.0, not 127.0.0.1: the reverse proxy reaches this over the container
 # network, so binding to loopback would make it unreachable.
-CMD ["uvicorn", "gate:app", "--host", "0.0.0.0", "--port", "8080", "--limit-concurrency", "32", "--timeout-keep-alive", "5", "--no-server-header"]
+# Routine access logs include peer addresses and legacy identity query strings.
+# Keep error/startup diagnostics, but do not record every authenticated request.
+CMD ["uvicorn", "gate:app", "--host", "0.0.0.0", "--port", "8080", "--limit-concurrency", "32", "--timeout-keep-alive", "5", "--no-server-header", "--no-access-log"]
