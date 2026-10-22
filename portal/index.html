@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>Delete your focus account | Lockout Gate</title>
+<link rel="stylesheet" href="/account-deletion/style.css"><script src="/account-deletion/delete.js" defer></script></head>
+<body><main><h1>Delete your Lockout Gate focus account</h1>
+<p>Use your saved LG1 recovery key to prove that this is your account. This page sends the key directly to the focus service over HTTPS. Do not send it by email or chat.</p>
+<p>An idle account is deleted immediately. If a focus lock is active, deletion is scheduled until that lock finishes. The countdown and early-exit allowance stay in effect. You cannot start or extend a lock while deletion is pending.</p>
+<p>Deletion removes the live focus account, credentials, lock record and early-exit counter. Local habits, wallpaper and blocking settings on your phone are separate. Managed database backups expire within 30 days while maintenance is operating. A hashed request is kept until deletion completes, then a hashed deletion receipt is kept for 31 days to prevent restored backups from reviving a deleted account.</p>
+<form id="delete-form" autocomplete="off"><label for="key">Saved recovery key</label>
+<input id="key" type="password" maxlength="256" required autocomplete="off" spellcheck="false" autocapitalize="off">
+<label class="confirm"><input id="confirm" type="checkbox" required> I understand that this request is permanent and does not end an active lock early.</label>
+<button type="submit" id="submit">Request account deletion</button></form>
+<p id="result" role="status" aria-live="polite"></p>
+<noscript>This secure request needs JavaScript. Enable it for this page, or use account deletion inside the app.</noscript>
+<p>If you no longer have the key, support cannot retrieve it. Do not send identity documents or secret keys to support. <a href="https://lockout-gate.netlify.app/delete-account/" rel="noreferrer">Deletion information and support</a>.</p>
+</main></body></html>

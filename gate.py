@@ -17,6 +17,7 @@ import os
 import logging
 import sqlite3
 import time
+import asyncio
 from contextlib import closing
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -29,6 +30,8 @@ from pydantic import BaseModel, Field
 import focus
 import public_focus
 import work
+import privacy_maintenance
+import deletion_portal
 from server_auth import require_admin, require_key
 from server_transport import RequestGuard
 
@@ -45,6 +48,7 @@ app.add_middleware(RequestGuard, device_key=lambda: DEVICE_KEY)
 app.include_router(work.router)
 app.include_router(focus.router)
 app.include_router(public_focus.router)
+app.include_router(deletion_portal.router)
 
 
 @app.exception_handler(RequestValidationError)
@@ -75,15 +79,40 @@ def db() -> sqlite3.Connection:
 @app.on_event("startup")
 def init_db() -> None:
     os.makedirs(os.path.dirname(DB_PATH) or ".", exist_ok=True)
-    backup_before_focus()
-    backup_before_security()
-    backup_once(".before-public-focus-v1.bak", "Pre-public-focus")
-    backup_once(".before-early-exits-v1.bak", "Pre-early-exits")
+    if not os.path.exists(privacy_maintenance.marker_path()):
+        backup_before_focus()
+        backup_before_security()
+        backup_once(".before-public-focus-v1.bak", "Pre-public-focus")
+        backup_once(".before-early-exits-v1.bak", "Pre-early-exits")
     with closing(db()) as conn, conn:
         conn.executescript(SCHEMA)
     work.init_schema()
     focus.init_schema()
     public_focus.init_schema()
+    privacy_maintenance.init_schema()
+    # Fail startup if a previous deletion cannot be honoured after a restore.
+    privacy_maintenance.process_deletions()
+    privacy_maintenance.safe_maintain()
+
+
+@app.on_event("startup")
+async def start_privacy_maintenance():
+    async def loop():
+        while True:
+            await asyncio.sleep(60)
+            await asyncio.to_thread(privacy_maintenance.safe_maintain)
+    app.state.privacy_task = asyncio.create_task(loop())
+
+
+@app.on_event("shutdown")
+async def stop_privacy_maintenance():
+    task = getattr(app.state, "privacy_task", None)
+    if task:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 
 def backup_before_focus() -> None:
@@ -255,4 +284,6 @@ def status(device_id: str, x_admin: str = Header(default="")) -> dict:
 
 @app.get("/healthz")
 def healthz() -> dict:
-    return {"ok": True, "day": today(), "public_focus_accounts": True, "monthly_early_exit_limit": focus.EARLY_EXIT_LIMIT}
+    return {"ok": True, "day": today(), "public_focus_accounts": True,
+            "monthly_early_exit_limit": focus.EARLY_EXIT_LIMIT, "account_deletion_requests": True,
+            "privacy_maintenance": privacy_maintenance.status()}

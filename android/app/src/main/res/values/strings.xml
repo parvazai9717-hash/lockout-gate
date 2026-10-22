@@ -185,4 +185,8 @@
     <string name="public_focus_delete_message">Delete your focus account and its lock history from the server? Your habits, wallpaper and app-blocking selections stay on this phone. You can create a new focus account afterward. An active lock must finish or be ended with its recovery key first.</string>
     <string name="public_focus_deleted">Focus account deleted</string>
     <string name="public_focus_delete_failed">The account could not be deleted. Check your connection and finish any active lock first.</string>
+    <string name="public_focus_request_delete">Request account deletion</string>
+    <string name="public_focus_unavailable">This focus account no longer accepts this device. Set up a new account, or use your saved recovery key if the account still exists. Your local habits and wallpaper are unchanged.</string>
+    <string name="public_focus_request_delete_message">This permanently deletes your focus account when the current lock finishes. It does not end the lock early or restore an early-exit allowance. No new lock can start while deletion is pending. Local habits and wallpaper stay on your phone. Continue?</string>
+    <string name="public_focus_delete_pending">Deletion requested. Your current lock continues. The server deletes the account within about one minute after the lock ends while the service is running.</string>
 </resources>

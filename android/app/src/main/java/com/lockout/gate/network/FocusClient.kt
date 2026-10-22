@@ -41,6 +41,11 @@ object FocusClient {
         val id = store.focusDeviceId; val credential = auth
         return api.deleteAccount(credential, FocusEndRequest(id)).also { stillCurrent(store, id, credential) }
     }
+    suspend fun requestDeletion(store: SessionStore): retrofit2.Response<DeletionReceipt> {
+        check(publicMode)
+        val id = store.focusDeviceId; val credential = auth
+        return api.requestDeletion(credential, FocusEndRequest(id)).also { stillCurrent(store, id, credential) }
+    }
     val api: FocusApi by lazy {
         check(connectionAvailable) { "Focus server is not configured" }
         val client = createHttpClient(publicMode) { store.focusDeviceSecret }

@@ -16,6 +16,27 @@ import org.robolectric.annotation.LooperMode
 @Config(sdk = [28])
 @LooperMode(LooperMode.Mode.PAUSED)
 class FocusUiSafetyTest {
+    @Test fun deletionRequestIsDiscoverableDuringPublicLockWithoutEndingIt() {
+        val screen = Robolectric.buildActivity(FocusLockActivity::class.java)
+        val activity = screen.get()
+        val store = SessionStore(activity)
+        if (!BuildConfig.PERSONAL_SETTINGS_GUARD) {
+            assertTrue(store.savePublicFocusAccount("disposable-deletion-test", "x".repeat(64)))
+        }
+        val now = System.currentTimeMillis() / 1000
+        store.updateFocus(com.lockout.gate.network.FocusState(true, now, now + 600, 600, now), allowStart = true)
+        screen.create()
+        val button = activity.findViewById<Button>(R.id.focusRequestDeletionButton)
+        assertEquals(if (BuildConfig.PERSONAL_SETTINGS_GUARD) android.view.View.GONE else android.view.View.VISIBLE,
+            button.visibility)
+        if (!BuildConfig.PERSONAL_SETTINGS_GUARD) {
+            button.performClick()
+            assertTrue(org.robolectric.shadows.ShadowDialog.getLatestDialog().isShowing)
+        }
+        assertTrue(store.focusActive())
+        screen.destroy()
+    }
+
     @Test fun pendingStartDisablesAccountSwitchAndDeletion() {
         val screen = Robolectric.buildActivity(AppCompatActivity::class.java)
         val activity = screen.get()

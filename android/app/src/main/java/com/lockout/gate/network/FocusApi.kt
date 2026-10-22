@@ -10,6 +10,8 @@ data class PublicAccountRequest(val device_id: String, val device_secret: String
 @androidx.annotation.Keep
 data class FocusServiceInfo(val public_focus_accounts: Boolean = false)
 @androidx.annotation.Keep
+data class DeletionReceipt(val deleted: Boolean = false, val pending: Boolean = false, val scheduled_at: Long = 0)
+@androidx.annotation.Keep
 data class FocusState(
     val active: Boolean,
     val started_at: Long,
@@ -58,5 +60,8 @@ interface FocusApi {
 
     @POST("/v1/public/account/delete")
     suspend fun deleteAccount(@Header("X-Auth") auth: String, @Body body: FocusEndRequest): Response<Map<String, Boolean>>
+
+    @POST("/v1/public/account/request-deletion")
+    suspend fun requestDeletion(@Header("X-Auth") auth: String, @Body body: FocusEndRequest): Response<DeletionReceipt>
 
 }

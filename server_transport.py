@@ -10,6 +10,7 @@ ADMIN_ROUTES = {"/v1/status", "/v1/override"}
 PUBLIC_ROUTES = {
     "/v1/public/enroll", "/v1/public/recover", "/v1/public/focus/state",
     "/v1/public/focus/start", "/v1/public/focus/end", "/v1/public/account/delete",
+    "/v1/public/account/request-deletion", "/v1/public/account/delete-with-key",
 }
 
 

@@ -10,6 +10,7 @@ from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
 import focus
+import privacy_maintenance
 
 router = APIRouter(prefix="/v1/public")
 
@@ -93,6 +94,8 @@ def enroll(body: Enroll, request: Request):
         raise HTTPException(400, "recovery and device credentials must differ")
     with closing(focus.db()) as c, c:
         c.execute("BEGIN IMMEDIATE")
+        if privacy_maintenance.was_deleted(body.device_id):
+            raise HTTPException(409, "create a new account identity after deletion")
         row = c.execute("SELECT * FROM public_focus_account WHERE device_id=?", (body.device_id,)).fetchone()
         if row:
             account(c, body.device_id, body.device_secret)
@@ -127,6 +130,8 @@ def start(body: focus.FocusStartRequest, x_auth: str = Header(default="")):
     with closing(focus.db()) as c, c:
         c.execute("BEGIN IMMEDIATE")
         row = account(c, body.device_id, x_auth)
+        if privacy_maintenance.pending(c, body.device_id):
+            raise HTTPException(409, "account deletion is pending; no new lock may start")
         now = int(time.time())
         active = row["ends_at"] > now
         started = row["started_at"] if active else now
@@ -182,6 +187,34 @@ def delete(body: focus.FocusEndRequest, x_auth: str = Header(default="")):
         row = account(c, body.device_id, x_auth)
         if row["ends_at"] > int(time.time()):
             raise HTTPException(423, "finish the lock or end it with the recovery key first")
-        c.execute("DELETE FROM public_focus_account WHERE device_id=?", (body.device_id,))
-        c.execute("DELETE FROM focus_early_exit WHERE scope='public' AND device_id=?", (body.device_id,))
+        privacy_maintenance.delete_account(c, body.device_id, int(time.time()))
     return {"deleted": True}
+
+
+@router.post("/account/request-deletion")
+def request_deletion(body: focus.FocusEndRequest, x_auth: str = Header(default="")):
+    with closing(focus.db()) as c, c:
+        c.execute("BEGIN IMMEDIATE")
+        row = account(c, body.device_id, x_auth)
+        return privacy_maintenance.request_deletion(c, row, int(time.time()))
+
+
+class KeyDeletion(BaseModel):
+    device_id: str = Field(pattern=r"^[a-zA-Z0-9-]{16,100}$")
+    recovery_key: str = Field(min_length=1, max_length=256)
+
+
+@router.post("/account/delete-with-key")
+def delete_with_key(body: KeyDeletion, request: Request):
+    rate_limit(request)
+    with closing(focus.db()) as c, c:
+        c.execute("BEGIN IMMEDIATE")
+        row = c.execute("SELECT * FROM public_focus_account WHERE device_id=?", (body.device_id,)).fetchone()
+        if not row:
+            raise HTTPException(401, "incorrect recovery key")
+        error = recovery_check(c, row, body.recovery_key)
+        if not error:
+            result = privacy_maintenance.request_deletion(c, row, int(time.time()))
+    if error:
+        raise error
+    return result

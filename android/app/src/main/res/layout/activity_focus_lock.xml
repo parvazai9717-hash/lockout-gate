@@ -69,5 +69,13 @@
         android:text="@string/focus_end_early"
         android:textColor="#80FFFFFF" />
 
+    <Button
+        android:id="@+id/focusRequestDeletionButton"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/public_focus_request_delete"
+        android:textColor="#B3FFFFFF" />
 </LinearLayout>
 </ScrollView>

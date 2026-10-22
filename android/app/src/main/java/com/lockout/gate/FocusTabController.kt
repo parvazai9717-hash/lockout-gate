@@ -98,6 +98,13 @@ class FocusTabController(
                 if (resp.isSuccessful && body != null) {
                     store.updateFocus(body)
                     render()
+                } else if (resp.code() == 401 && FocusClient.publicMode && !store.focusActive() && !accountSetup.busy && !starting) {
+                    // A deleted or recovered-away account no longer accepts this
+                    // credential. Never discard credentials during a cached lock.
+                    if (store.clearPublicFocusAccount()) {
+                        Toast.makeText(activity, R.string.public_focus_unavailable, Toast.LENGTH_LONG).show()
+                        render()
+                    }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -195,6 +202,11 @@ class FocusTabController(
                 if (resp.isSuccessful && body != null) {
                     store.updateFocus(body,allowStart=true)
                     activity.startActivity(Intent(activity, FocusLockActivity::class.java))
+                } else if (resp.code() == 401 && FocusClient.publicMode && !store.focusActive()) {
+                    store.clearPublicFocusAccount()
+                    Toast.makeText(activity, R.string.public_focus_unavailable, Toast.LENGTH_LONG).show()
+                } else if (resp.code() == 409 && FocusClient.publicMode) {
+                    Toast.makeText(activity, R.string.public_focus_delete_pending, Toast.LENGTH_LONG).show()
                 } else {
                     Toast.makeText(activity, R.string.focus_start_failed, Toast.LENGTH_LONG).show()
                 }

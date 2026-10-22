@@ -179,6 +179,34 @@ class PublicFocusSetup(
         }
     }
 
+    fun requestDeletion() {
+        if (busy || !FocusClient.publicMode || !store.publicFocusEnrolled) return
+        AlertDialog.Builder(activity).setTitle(R.string.public_focus_request_delete)
+            .setMessage(R.string.public_focus_request_delete_message)
+            .setPositiveButton(R.string.public_focus_request_delete) { _, _ ->
+                if (busy) return@setPositiveButton
+                updateBusy(true)
+                activity.lifecycleScope.launch {
+                    try {
+                        val response = FocusClient.requestDeletion(store)
+                        val receipt = response.body()
+                        when {
+                            response.isSuccessful && receipt?.deleted == true -> {
+                                // Clear credentials only if the cached countdown is already idle.
+                                store.clearPublicFocusAccount()
+                                toast(R.string.public_focus_deleted)
+                            }
+                            response.isSuccessful && receipt?.pending == true -> toast(R.string.public_focus_delete_pending)
+                            response.code() == 404 -> toast(R.string.public_focus_service_update)
+                            else -> toast(R.string.public_focus_delete_failed)
+                        }
+                    } catch (e: CancellationException) { throw e
+                    } catch (e: Exception) { toast(R.string.public_focus_delete_failed)
+                    } finally { updateBusy(false) }
+                }
+            }.setNegativeButton(android.R.string.cancel, null).show()
+    }
+
     fun delete() {
         if (busy || store.focusActive()) return
         AlertDialog.Builder(activity).setTitle(R.string.public_focus_delete)

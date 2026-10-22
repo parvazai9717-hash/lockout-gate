@@ -47,5 +47,9 @@ class FocusApiContractTest {
         assertEquals("/v1/public/enroll", requests.last().url.encodedPath)
         assertTrue(api.recover(PublicAccountRequest("test-device", "rotated-device-secret", "off-phone-key")).isSuccessful)
         assertEquals("/v1/public/recover", requests.last().url.encodedPath)
+        assertTrue(api.requestDeletion("test-device-auth", FocusEndRequest("test-device")).isSuccessful)
+        assertEquals("/v1/public/account/request-deletion", requests.last().url.encodedPath)
+        assertEquals("test-device-auth", requests.last().header("X-Auth"))
+        assertNull(requests.last().url.encodedQuery)
     }
 }

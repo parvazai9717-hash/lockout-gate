@@ -68,6 +68,10 @@ class FocusLockActivity : BaseActivity() {
         }
         findViewById<Button>(R.id.focusWhatsAppButton).setOnClickListener { openWhatsApp() }
         findViewById<Button>(R.id.focusEndEarlyButton).setOnClickListener { promptEndEarly() }
+        val deletion = findViewById<Button>(R.id.focusRequestDeletionButton)
+        deletion.visibility = if (FocusClient.publicMode && store.publicFocusEnrolled) View.VISIBLE else View.GONE
+        val accountSetup = PublicFocusSetup(this, store) { deletion.isEnabled = !ending }
+        deletion.setOnClickListener { if (!ending && !finishingLock) accountSetup.requestDeletion() }
 
         // Back does nothing: there is nothing behind this screen to go back to.
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
